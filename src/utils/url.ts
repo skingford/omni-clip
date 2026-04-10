@@ -24,8 +24,20 @@ export function isDouyinShortLink(url: string): boolean {
 }
 
 export function extractVideoId(url: string): string | null {
-  const match = url.match(/\/video\/(\d+)/);
-  return match ? match[1] : null;
+  // Match /video/ID path pattern
+  const pathMatch = url.match(/\/video\/(\d+)/);
+  if (pathMatch) return pathMatch[1];
+
+  // Match modal_id query parameter (e.g. user profile page with video modal)
+  try {
+    const parsed = new URL(url);
+    const modalId = parsed.searchParams.get('modal_id');
+    if (modalId && /^\d+$/.test(modalId)) return modalId;
+  } catch {
+    // not a valid URL, fall through
+  }
+
+  return null;
 }
 
 export function normalizeUrl(input: string): string {
