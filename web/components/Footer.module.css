@@ -1,0 +1,15 @@
+.footer {
+  background: var(--color-light-gray);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 24px;
+  text-align: center;
+}
+
+.text {
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.33;
+  letter-spacing: -0.12px;
+  color: var(--color-text-tertiary);
+}
