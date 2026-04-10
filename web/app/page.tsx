@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Navigation from '@/components/Navigation';
 import HeroSection from '@/components/HeroSection';
 import VideoPreview, { VideoError } from '@/components/VideoPreview';
+import CollectionView from '@/components/CollectionView';
 import Footer from '@/components/Footer';
 
 interface VideoData {
@@ -17,10 +18,27 @@ interface VideoData {
   platform: string;
 }
 
+interface CollectionVideoData {
+  id: string;
+  title: string;
+  author: string;
+  coverUrl: string;
+  duration?: number;
+  token: string;
+}
+
+interface CollectionData {
+  id: string;
+  name: string;
+  desc: string;
+  videoCount: number;
+  videos: CollectionVideoData[];
+}
+
 type AppState =
   | { status: 'idle' }
   | { status: 'resolving' }
-  | { status: 'resolved'; video: VideoData; token: string }
+  | { status: 'resolved'; video: VideoData; token: string; collection: CollectionData | null }
   | { status: 'error'; message: string };
 
 export default function Home() {
@@ -36,7 +54,12 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.success) {
-        setState({ status: 'resolved', video: data.data, token: data.token });
+        setState({
+          status: 'resolved',
+          video: data.data,
+          token: data.token,
+          collection: data.collection ?? null,
+        });
       } else {
         setState({ status: 'error', message: data.error });
       }
@@ -49,6 +72,8 @@ export default function Home() {
     setState({ status: 'idle' });
   }
 
+  const showCollection = state.status === 'resolved' && state.collection;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navigation />
@@ -57,10 +82,16 @@ export default function Home() {
           onSubmit={handleResolve}
           loading={state.status === 'resolving'}
         />
-        {state.status === 'resolved' && (
+        {state.status === 'resolved' && !showCollection && (
           <VideoPreview
             video={state.video}
             token={state.token}
+            onReset={handleReset}
+          />
+        )}
+        {showCollection && (
+          <CollectionView
+            collection={state.collection!}
             onReset={handleReset}
           />
         )}

@@ -10,11 +10,20 @@ export interface VideoInfo {
   platform: string;
 }
 
+export interface CollectionInfo {
+  id: string;
+  name: string;
+  desc: string;
+  videoCount: number;
+  videos: VideoInfo[];
+}
+
 export interface PlatformAdapter {
   readonly name: string;
   canHandle(url: string): boolean;
   resolve(url: string): Promise<string>;
   getVideoInfo(url: string): Promise<VideoInfo>;
+  getCollectionInfo?(url: string): Promise<CollectionInfo | null>;
 }
 
 export interface DownloadOptions {

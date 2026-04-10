@@ -18,6 +18,20 @@ export function storeVideo(videoInfo: VideoInfo): string {
   return token;
 }
 
+export function storeBatch(videos: VideoInfo[]): Record<string, string> {
+  cleanup();
+  const tokens: Record<string, string> = {};
+  for (const video of videos) {
+    const token = crypto.randomUUID();
+    store.set(token, {
+      videoInfo: video,
+      expiresAt: Date.now() + TTL_MS,
+    });
+    tokens[video.id] = token;
+  }
+  return tokens;
+}
+
 export function getVideo(token: string): VideoInfo | null {
   cleanup();
   const entry = store.get(token);

@@ -1,0 +1,234 @@
+.section {
+  background: var(--color-light-gray);
+  padding: 60px 24px 80px;
+}
+
+.container {
+  max-width: var(--max-content-width);
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.titleArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.collectionName {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.14;
+  letter-spacing: 0.196px;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+
+.videoCount {
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.29;
+  letter-spacing: -0.224px;
+  color: var(--color-text-tertiary);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.downloadAllBtn {
+  height: 44px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-apple-blue);
+  color: var(--color-text-white);
+  border: 1px solid transparent;
+  border-radius: var(--radius-standard);
+  font-family: var(--font-text);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.374px;
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+.downloadAllBtn:hover {
+  opacity: 0.85;
+}
+
+.downloadAllBtn:active {
+  opacity: 0.7;
+}
+
+.downloadAllBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.resetBtn {
+  height: 44px;
+  padding: 0 20px;
+  background: transparent;
+  color: var(--color-link-blue);
+  border: 1px solid var(--color-link-blue);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.224px;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.resetBtn:hover {
+  background: rgba(0, 113, 227, 0.06);
+}
+
+.progress {
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.29;
+  letter-spacing: -0.224px;
+  color: var(--color-apple-blue);
+  white-space: nowrap;
+}
+
+/* Video List */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #ffffff;
+  border-radius: var(--radius-standard);
+  padding: 12px;
+  transition: box-shadow 0.2s ease;
+}
+
+.item:hover {
+  box-shadow: var(--shadow-card);
+}
+
+.index {
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.29;
+  letter-spacing: -0.224px;
+  color: var(--color-text-tertiary);
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.thumb {
+  width: 80px;
+  height: 45px;
+  border-radius: var(--radius-micro);
+  overflow: hidden;
+  background: var(--color-dark-surface-1);
+  flex-shrink: 0;
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemTitle {
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.29;
+  letter-spacing: -0.224px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemDuration {
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.33;
+  letter-spacing: -0.12px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+
+.itemDownloadBtn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-apple-blue);
+  border-radius: 50%;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.itemDownloadBtn:hover {
+  background: rgba(0, 113, 227, 0.08);
+}
+
+.itemDownloadBtn.downloaded {
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 640px) {
+  .section {
+    padding: 40px 16px 60px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .downloadAllBtn {
+    flex: 1;
+  }
+
+  .thumb {
+    width: 60px;
+    height: 34px;
+  }
+
+  .index {
+    width: 20px;
+    font-size: 12px;
+  }
+}
