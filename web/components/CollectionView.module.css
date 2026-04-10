@@ -201,7 +201,29 @@
 }
 
 .itemDownloadBtn.downloaded {
-  color: var(--color-text-tertiary);
+  color: #34c759;
+}
+
+.itemDownloadBtn.failedBtn {
+  color: #ff3b30;
+}
+
+.itemFailed {
+  opacity: 0.7;
+}
+
+.failedText {
+  color: #ff3b30;
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 640px) {

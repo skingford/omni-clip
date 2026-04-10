@@ -139,10 +139,19 @@ export class DouyinAdapter implements PlatformAdapter {
   }
 
   private itemToVideoInfo(item: any): VideoInfo {
-    const videoUri = item?.video?.play_addr?.uri;
-    const videoUrl = videoUri
+    const playAddr = item?.video?.play_addr;
+    const videoUri = playAddr?.uri;
+
+    // Collect all candidate URLs: url_list from API + constructed play URL
+    const urlList: string[] = Array.isArray(playAddr?.url_list) ? [...playAddr.url_list] : [];
+    const constructedUrl = videoUri
       ? `https://www.douyin.com/aweme/v1/play/?video_id=${videoUri}`
       : '';
+
+    // Primary URL: prefer url_list entries (direct CDN), fall back to constructed
+    const videoUrl = urlList[0] || constructedUrl;
+    // All fallback URLs for retry
+    const videoUrls = [...new Set([...urlList, constructedUrl].filter(Boolean))];
 
     return {
       id: item.aweme_id ?? '',
@@ -150,6 +159,7 @@ export class DouyinAdapter implements PlatformAdapter {
       author: item.author?.nickname ?? 'Unknown',
       description: item.desc ?? '',
       videoUrl,
+      videoUrls: videoUrls.length > 1 ? videoUrls : undefined,
       coverUrl: item.video?.cover?.url_list?.[0] ?? '',
       duration: item.video?.duration ? Math.round(item.video.duration / 1000) : undefined,
       hasWatermark: false,

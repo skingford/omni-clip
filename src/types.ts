@@ -4,6 +4,7 @@ export interface VideoInfo {
   author: string;
   description: string;
   videoUrl: string;
+  videoUrls?: string[]; // Fallback CDN mirrors
   coverUrl: string;
   duration?: number;
   hasWatermark: boolean;

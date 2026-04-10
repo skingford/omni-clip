@@ -8,28 +8,32 @@ const DOWNLOAD_HEADERS: Record<string, string> = {
   Referer: 'https://www.douyin.com/',
 };
 
-async function fetchVideo(videoUrl: string, retries = 2): Promise<Response> {
-  // Step 1: Get CDN URL from Douyin play redirect
-  const redirectRes = await fetch(videoUrl, {
+async function fetchFromUrl(url: string): Promise<Response> {
+  // Follow Douyin play URL redirect manually
+  const redirectRes = await fetch(url, {
     headers: DOWNLOAD_HEADERS,
     redirect: 'manual',
   });
 
-  let cdnUrl = videoUrl;
   if (redirectRes.status === 302 || redirectRes.status === 301) {
-    cdnUrl = redirectRes.headers.get('location') || videoUrl;
+    const cdnUrl = redirectRes.headers.get('location') || url;
+    return fetch(cdnUrl, { headers: DOWNLOAD_HEADERS });
   }
 
-  // Step 2: Fetch video from CDN
-  const res = await fetch(cdnUrl, { headers: DOWNLOAD_HEADERS });
+  // Not a redirect — might be a direct CDN URL
+  return fetch(url, { headers: DOWNLOAD_HEADERS });
+}
 
-  if (!res.ok && retries > 0) {
-    // Wait and retry on failure (rate limiting)
-    await new Promise((r) => setTimeout(r, 1000));
-    return fetchVideo(videoUrl, retries - 1);
+async function fetchVideoWithFallbacks(urls: string[]): Promise<Response | null> {
+  for (const url of urls) {
+    try {
+      const res = await fetchFromUrl(url);
+      if (res.ok) return res;
+    } catch {
+      // try next URL
+    }
   }
-
-  return res;
+  return null;
 }
 
 export async function GET(request: Request) {
@@ -53,11 +57,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const cdnResponse = await fetchVideo(videoInfo.videoUrl);
+    // Try all available URLs (primary + CDN mirrors)
+    const urls = videoInfo.videoUrls ?? [videoInfo.videoUrl];
+    const cdnResponse = await fetchVideoWithFallbacks(urls);
 
-    if (!cdnResponse.ok) {
+    if (!cdnResponse) {
       return NextResponse.json(
-        { success: false, error: `Video source returned ${cdnResponse.status}` },
+        { success: false, error: 'All video sources failed' },
         { status: 502 }
       );
     }
