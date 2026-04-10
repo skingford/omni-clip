@@ -6,7 +6,13 @@ interface StoreEntry {
 }
 
 const TTL_MS = 5 * 60 * 1000; // 5 minutes
-const store = new Map<string, StoreEntry>();
+
+// Persist store across Next.js dev hot reloads via globalThis
+const g = globalThis as unknown as { __omniClipStore?: Map<string, StoreEntry> };
+if (!g.__omniClipStore) {
+  g.__omniClipStore = new Map();
+}
+const store = g.__omniClipStore;
 
 export function storeVideo(videoInfo: VideoInfo): string {
   cleanup();

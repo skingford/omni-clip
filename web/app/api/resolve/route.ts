@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { resolveVideo, resolveCollection } from '@/lib/bridge';
 import { storeVideo, storeBatch } from '@/lib/store';
 
-export const maxDuration = 30; // Allow up to 30s for slow Douyin requests
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();

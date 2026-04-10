@@ -31,10 +31,15 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function triggerDownload(token: string, author: string, title: string) {
+function triggerDownload(token: string, author: string, title: string, collectionName?: string, index?: number) {
+  const params = new URLSearchParams({ token });
+  if (collectionName) params.set('collection', collectionName);
+  if (index != null) params.set('index', String(index + 1).padStart(2, '0'));
+
   const a = document.createElement('a');
-  a.href = `/api/download?token=${encodeURIComponent(token)}`;
-  a.download = `${author}-${title}.mp4`;
+  a.href = `/api/download?${params}`;
+  const prefix = index != null ? `${String(index + 1).padStart(2, '0')}-` : '';
+  a.download = `${prefix}${author}-${title}.mp4`;
   a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
@@ -46,10 +51,10 @@ export default function CollectionView({ collection, onReset }: CollectionViewPr
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-  const handleDownloadOne = useCallback((video: CollectionVideoData) => {
-    triggerDownload(video.token, video.author, video.title);
+  const handleDownloadOne = useCallback((video: CollectionVideoData, index: number) => {
+    triggerDownload(video.token, video.author, video.title, collection.name, index);
     setDownloadedSet((prev) => new Set(prev).add(video.id));
-  }, []);
+  }, [collection.name]);
 
   const handleDownloadAll = useCallback(async () => {
     setDownloading(true);
@@ -58,13 +63,13 @@ export default function CollectionView({ collection, onReset }: CollectionViewPr
 
     for (let i = 0; i < total; i++) {
       const video = collection.videos[i];
-      triggerDownload(video.token, video.author, video.title);
+      triggerDownload(video.token, video.author, video.title, collection.name, i);
       setDownloadedSet((prev) => new Set(prev).add(video.id));
       setProgress({ current: i + 1, total });
 
-      // Stagger downloads to avoid overwhelming the browser
+      // Stagger downloads to avoid CDN rate limiting
       if (i < total - 1) {
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 3000));
       }
     }
 
@@ -121,7 +126,7 @@ export default function CollectionView({ collection, onReset }: CollectionViewPr
               </div>
               <button
                 className={`${styles.itemDownloadBtn} ${downloadedSet.has(video.id) ? styles.downloaded : ''}`}
-                onClick={() => handleDownloadOne(video)}
+                onClick={() => handleDownloadOne(video, index)}
                 title="Download"
               >
                 {downloadedSet.has(video.id) ? <CheckIcon /> : <DownloadSmallIcon />}
