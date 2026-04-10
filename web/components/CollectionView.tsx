@@ -35,9 +35,10 @@ function triggerDownload(token: string, author: string, title: string) {
   const a = document.createElement('a');
   a.href = `/api/download?token=${encodeURIComponent(token)}`;
   a.download = `${author}-${title}.mp4`;
+  a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
 }
 
 export default function CollectionView({ collection, onReset }: CollectionViewProps) {

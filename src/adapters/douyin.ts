@@ -1,11 +1,21 @@
 import type { PlatformAdapter, VideoInfo, CollectionInfo } from '../types.js';
-import { isDouyinUrl, isDouyinShortLink, extractVideoId } from '../utils/url.js';
+import { isDouyinUrl, isDouyinShortLink, extractVideoId, isMixUrl, extractMixId } from '../utils/url.js';
 
 const MOBILE_UA =
   'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36';
 
+const DESKTOP_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+
 const DEFAULT_HEADERS: Record<string, string> = {
   'User-Agent': MOBILE_UA,
+  Referer: 'https://www.douyin.com/',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+};
+
+const DESKTOP_HEADERS: Record<string, string> = {
+  'User-Agent': DESKTOP_UA,
   Referer: 'https://www.douyin.com/',
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -43,6 +53,15 @@ export class DouyinAdapter implements PlatformAdapter {
   }
 
   async getVideoInfo(url: string): Promise<VideoInfo> {
+    // If this is a mix/collection URL, fetch the first video from it
+    if (isMixUrl(url)) {
+      const collection = await this.getCollectionByMixUrl(url);
+      if (collection && collection.videos.length > 0) {
+        return collection.videos[0];
+      }
+      throw new Error('Could not extract videos from this collection');
+    }
+
     const videoId = extractVideoId(url);
     if (!videoId) {
       throw new Error(`Could not extract video ID from URL: ${url}`);
@@ -138,56 +157,35 @@ export class DouyinAdapter implements PlatformAdapter {
     };
   }
 
-  async getCollectionInfo(url: string): Promise<CollectionInfo | null> {
-    const videoId = extractVideoId(url);
-    if (!videoId) return null;
+  private async getCollectionByMixUrl(url: string): Promise<CollectionInfo | null> {
+    const mixId = extractMixId(url);
+    if (!mixId) return null;
+    return this.fetchMixVideos(mixId);
+  }
 
-    const shareUrl = `https://www.iesdouyin.com/share/video/${videoId}/`;
-    const response = await fetch(shareUrl, { headers: DEFAULT_HEADERS });
-    if (!response.ok) return null;
-
-    const html = await response.text();
-    const match = html.match(/window\._ROUTER_DATA\s*=\s*(\{.+?\})\s*<\/script>/s);
-    if (!match) return null;
-
-    let routerData: any;
-    try {
-      routerData = JSON.parse(match[1]);
-    } catch {
-      return null;
-    }
-
-    const loaderData = routerData?.loaderData;
-    if (!loaderData) return null;
-
-    const pageData = loaderData[`video_(id)/page`]
-      ?? loaderData[`video_${videoId}/page`]
-      ?? this.findVideoPageData(loaderData);
-    if (!pageData) return null;
-
-    // Check for collection/mix data
-    const mixInfo = pageData?.videoInfoRes?.mix_info;
-    if (!mixInfo?.mix_id) return null;
-
-    const mixId = mixInfo.mix_id;
-    const name = mixInfo.mix_name ?? mixInfo.desc ?? 'Unknown Collection';
-    const desc = mixInfo.desc ?? '';
-    const stc = mixInfo.statis?.play_vv ?? 0;
-
-    // Fetch all videos in the collection via Douyin mix API
+  private async fetchMixVideos(mixId: string): Promise<CollectionInfo | null> {
+    // Use iesdouyin.com API — works without auth, returns JSON directly
     const videos: VideoInfo[] = [];
     let cursor = 0;
     let hasMore = true;
+    let collectionName = 'Collection';
 
     while (hasMore) {
-      const mixUrl = `https://www.douyin.com/aweme/v1/web/mix/aweme/?mix_id=${mixId}&count=20&cursor=${cursor}`;
+      const apiUrl = `https://www.iesdouyin.com/web/api/mix/item/list/?mix_id=${mixId}&count=20&cursor=${cursor}`;
       try {
-        const mixResponse = await fetch(mixUrl, { headers: DEFAULT_HEADERS });
-        if (!mixResponse.ok) break;
+        const response = await fetch(apiUrl, { headers: DEFAULT_HEADERS });
+        if (!response.ok) break;
 
-        const mixData = await mixResponse.json();
-        const awemeList = mixData?.aweme_list;
+        const data = await response.json();
+        if (data.status_code !== 0) break;
+
+        const awemeList = data.aweme_list;
         if (!Array.isArray(awemeList) || awemeList.length === 0) break;
+
+        // Use first video's mix_info for the collection name
+        if (videos.length === 0 && awemeList[0]?.mix_info?.mix_name) {
+          collectionName = awemeList[0].mix_info.mix_name;
+        }
 
         for (const item of awemeList) {
           const info = this.itemToVideoInfo(item);
@@ -196,23 +194,10 @@ export class DouyinAdapter implements PlatformAdapter {
           }
         }
 
-        hasMore = mixData.has_more === 1 || mixData.has_more === true;
-        cursor = mixData.cursor ?? cursor + 20;
+        hasMore = data.has_more === true || data.has_more === 1;
+        cursor = data.cursor ?? cursor + 20;
       } catch {
         break;
-      }
-    }
-
-    // Fallback: if API returned nothing, try mix_awemes from page data
-    if (videos.length === 0) {
-      const mixAwemes = pageData?.videoInfoRes?.mix_awemes;
-      if (Array.isArray(mixAwemes)) {
-        for (const item of mixAwemes) {
-          const info = this.itemToVideoInfo(item);
-          if (info.videoUrl) {
-            videos.push(info);
-          }
-        }
       }
     }
 
@@ -220,10 +205,77 @@ export class DouyinAdapter implements PlatformAdapter {
 
     return {
       id: mixId,
-      name,
-      desc,
+      name: collectionName,
+      desc: '',
       videoCount: videos.length,
       videos,
     };
+  }
+
+  async getCollectionInfo(url: string): Promise<CollectionInfo | null> {
+    // Direct mix/collection URL
+    if (isMixUrl(url)) {
+      return this.getCollectionByMixUrl(url);
+    }
+
+    const videoId = extractVideoId(url);
+    if (!videoId) return null;
+
+    // Fetch desktop page — collection data is NOT on the mobile share page
+    const desktopUrl = `https://www.douyin.com/video/${videoId}`;
+    const response = await fetch(desktopUrl, { headers: DESKTOP_HEADERS });
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Try _ROUTER_DATA first
+    let mixInfo: any = null;
+    let mixAwemes: any[] = [];
+
+    const routerMatch = html.match(/window\._ROUTER_DATA\s*=\s*(\{.+?\})\s*<\/script>/s);
+    if (routerMatch) {
+      try {
+        const routerData = JSON.parse(routerMatch[1]);
+        const loaderData = routerData?.loaderData;
+        if (loaderData) {
+          const pageData = loaderData[`video_(id)/page`]
+            ?? loaderData[`video_${videoId}/page`]
+            ?? this.findVideoPageData(loaderData);
+          if (pageData) {
+            mixInfo = pageData?.videoInfoRes?.mix_info;
+            mixAwemes = pageData?.videoInfoRes?.mix_awemes ?? [];
+          }
+        }
+      } catch { /* ignore parse errors */ }
+    }
+
+    // Also try _RENDER_DATA (URL-encoded JSON used on some desktop pages)
+    if (!mixInfo) {
+      const renderMatch = html.match(/window\._RENDER_DATA\s*=\s*'(.+?)'\s*<\/script>/s);
+      if (renderMatch) {
+        try {
+          const decoded = decodeURIComponent(renderMatch[1]);
+          const renderData = JSON.parse(decoded);
+          // Search all top-level keys for video data with mix_info
+          for (const key of Object.keys(renderData)) {
+            const section = renderData[key];
+            if (section?.videoInfoRes?.mix_info) {
+              mixInfo = section.videoInfoRes.mix_info;
+              mixAwemes = section.videoInfoRes.mix_awemes ?? [];
+              break;
+            }
+            if (section?.awemeDetail?.mix_info) {
+              mixInfo = section.awemeDetail.mix_info;
+              break;
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    }
+
+    if (!mixInfo?.mix_id) return null;
+
+    // Use the proven iesdouyin API to fetch all videos
+    return this.fetchMixVideos(mixInfo.mix_id);
   }
 }

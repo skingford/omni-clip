@@ -30,9 +30,10 @@ export default function VideoPreview({ video, token, onReset }: VideoPreviewProp
     const a = document.createElement('a');
     a.href = `/api/download?token=${encodeURIComponent(token)}`;
     a.download = `${video.author}-${video.title}.mp4`;
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
   }
 
   return (

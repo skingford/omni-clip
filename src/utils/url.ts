@@ -1,4 +1,4 @@
-const DOUYIN_URL_PATTERN = /https?:\/\/(?:www\.)?(?:v\.)?douyin\.com\/[^\s]+/;
+const DOUYIN_URL_PATTERN = /https?:\/\/(?:www\.)?(?:v\.)?(?:ies)?douyin\.com\/[^\s]+/;
 
 export function extractUrlFromText(text: string): string | null {
   const match = text.match(DOUYIN_URL_PATTERN);
@@ -8,7 +8,7 @@ export function extractUrlFromText(text: string): string | null {
 export function isDouyinUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.hostname.endsWith('douyin.com');
+    return parsed.hostname.endsWith('douyin.com') || parsed.hostname.endsWith('iesdouyin.com');
   } catch {
     return false;
   }
@@ -35,6 +35,27 @@ export function extractVideoId(url: string): string | null {
     if (modalId && /^\d+$/.test(modalId)) return modalId;
   } catch {
     // not a valid URL, fall through
+  }
+
+  return null;
+}
+
+export function isMixUrl(url: string): boolean {
+  return /\/mix\/detail\/\d+/.test(url) || /\/collection\/\d+/.test(url);
+}
+
+export function extractMixId(url: string): string | null {
+  // Match /mix/detail/ID or /collection/ID path patterns
+  const pathMatch = url.match(/\/(?:mix\/detail|collection)\/(\d+)/);
+  if (pathMatch) return pathMatch[1];
+
+  // Match object_id query parameter
+  try {
+    const parsed = new URL(url);
+    const objectId = parsed.searchParams.get('object_id');
+    if (objectId && /^\d+$/.test(objectId)) return objectId;
+  } catch {
+    // fall through
   }
 
   return null;

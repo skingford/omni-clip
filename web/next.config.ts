@@ -5,7 +5,19 @@ const parentSrc = path.join(import.meta.dirname, '../src');
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(import.meta.dirname, '../'),
-  webpack: (config) => {
+  // Watch parent src/ so dev server reloads when CLI code changes
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: ['**/node_modules/**', '!**/src/**'],
+      };
+      config.snapshot = {
+        ...config.snapshot,
+        managedPaths: [],
+      };
+    }
+
     // Alias @omni-clip to parent src directory
     config.resolve.alias = {
       ...config.resolve.alias,

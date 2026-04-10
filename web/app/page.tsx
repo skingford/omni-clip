@@ -52,6 +52,18 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
+
+      if (!res.ok) {
+        // Try to parse error JSON, fall back to status text
+        try {
+          const data = await res.json();
+          setState({ status: 'error', message: data.error || `Server error (${res.status})` });
+        } catch {
+          setState({ status: 'error', message: `Server error (${res.status})` });
+        }
+        return;
+      }
+
       const data = await res.json();
       if (data.success) {
         setState({
@@ -63,8 +75,9 @@ export default function Home() {
       } else {
         setState({ status: 'error', message: data.error });
       }
-    } catch {
-      setState({ status: 'error', message: 'Network error — please check your connection' });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setState({ status: 'error', message: `Network error: ${msg}` });
     }
   }
 

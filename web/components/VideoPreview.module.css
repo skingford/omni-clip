@@ -182,6 +182,8 @@
   letter-spacing: -0.374px;
   color: var(--color-text-secondary);
   margin-bottom: 24px;
+  overflow-wrap: break-word;
+  word-break: break-all;
 }
 
 .retryBtn {
