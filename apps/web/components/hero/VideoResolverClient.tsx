@@ -1,38 +1,55 @@
 'use client';
 
-import { useVideoResolver } from '@/hooks/use-video-resolver';
+import type { AppState } from '@/components/types';
+import type { DownloadLogEntry } from '@/lib/download-log';
 import HeroSection from '@/components/hero/HeroSection';
 import VideoPreview from '@/components/video/VideoPreview';
 import VideoError from '@/components/video/VideoError';
 import CollectionView from '@/components/collection/CollectionView';
 
-export default function VideoResolverClient() {
-  const { state, handleResolve, handleReset } = useVideoResolver();
+interface VideoResolverClientProps {
+  state: AppState;
+  onResolve: (url: string) => void;
+  onReset: () => void;
+  onLogDownload: (entry: DownloadLogEntry) => Promise<void>;
+  originalUrl: string;
+}
 
+export default function VideoResolverClient({
+  state,
+  onResolve,
+  onReset,
+  onLogDownload,
+  originalUrl,
+}: VideoResolverClientProps) {
   const isResolved = state.status === 'resolved';
   const showCollection = isResolved && state.collection;
 
   return (
     <>
       <HeroSection
-        onSubmit={handleResolve}
+        onSubmit={onResolve}
         loading={state.status === 'resolving'}
       />
       {isResolved && !showCollection ? (
         <VideoPreview
           video={state.video}
           token={state.token}
-          onReset={handleReset}
+          onReset={onReset}
+          onLogDownload={onLogDownload}
+          originalUrl={originalUrl}
         />
       ) : null}
       {showCollection ? (
         <CollectionView
           collection={state.collection!}
-          onReset={handleReset}
+          onReset={onReset}
+          onLogDownload={onLogDownload}
+          originalUrl={originalUrl}
         />
       ) : null}
       {state.status === 'error' ? (
-        <VideoError message={state.message} onRetry={handleReset} />
+        <VideoError message={state.message} onRetry={onReset} />
       ) : null}
     </>
   );

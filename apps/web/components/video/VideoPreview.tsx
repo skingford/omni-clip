@@ -1,12 +1,15 @@
 'use client';
 
 import type { VideoData } from '@/components/types';
+import type { DownloadLogEntry } from '@/lib/download-log';
 import styles from './VideoPreview.module.css';
 
 interface VideoPreviewProps {
   video: VideoData;
   token: string;
   onReset: () => void;
+  onLogDownload: (entry: DownloadLogEntry) => Promise<void>;
+  originalUrl: string;
 }
 
 function formatDuration(seconds: number): string {
@@ -15,7 +18,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function VideoPreview({ video, token, onReset }: VideoPreviewProps) {
+export default function VideoPreview({ video, token, onReset, onLogDownload, originalUrl }: VideoPreviewProps) {
   function handleDownload() {
     const a = document.createElement('a');
     a.href = `/api/download?token=${encodeURIComponent(token)}`;
@@ -24,6 +27,17 @@ export default function VideoPreview({ video, token, onReset }: VideoPreviewProp
     document.body.appendChild(a);
     a.click();
     a.remove();
+
+    onLogDownload({
+      videoId: video.id,
+      title: video.title,
+      author: video.author,
+      platform: video.platform,
+      coverUrl: video.coverUrl,
+      duration: video.duration ?? null,
+      originalUrl,
+      downloadedAt: Date.now(),
+    });
   }
 
   return (

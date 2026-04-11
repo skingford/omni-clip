@@ -32,6 +32,7 @@ export function useVideoResolver() {
           video: data.data,
           token: data.token,
           collection: data.collection ?? null,
+          originalUrl: url,
         });
       } else {
         setState({ status: 'error', message: data.error });

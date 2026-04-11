@@ -2,11 +2,14 @@
 
 import { useState, useCallback } from 'react';
 import type { CollectionData, CollectionVideoData } from '@/components/types';
+import type { DownloadLogEntry } from '@/lib/download-log';
 import styles from './CollectionView.module.css';
 
 interface CollectionViewProps {
   collection: CollectionData;
   onReset: () => void;
+  onLogDownload: (entry: DownloadLogEntry) => Promise<void>;
+  originalUrl: string;
 }
 
 function formatDuration(seconds: number): string {
@@ -53,7 +56,7 @@ async function downloadVideo(
 
 type ItemStatus = 'idle' | 'loading' | 'done' | 'failed';
 
-export default function CollectionView({ collection, onReset }: CollectionViewProps) {
+export default function CollectionView({ collection, onReset, onLogDownload, originalUrl }: CollectionViewProps) {
   const [statusMap, setStatusMap] = useState<Record<string, ItemStatus>>({});
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, failed: 0 });
@@ -66,7 +69,19 @@ export default function CollectionView({ collection, onReset }: CollectionViewPr
     setStatus(video.id, 'loading');
     const ok = await downloadVideo(video.token, video.title, collection.name, index);
     setStatus(video.id, ok ? 'done' : 'failed');
-  }, [collection.name]);
+    if (ok) {
+      onLogDownload({
+        videoId: video.id,
+        title: video.title,
+        author: video.author,
+        platform: 'collection',
+        coverUrl: video.coverUrl,
+        duration: video.duration ?? null,
+        originalUrl,
+        downloadedAt: Date.now(),
+      });
+    }
+  }, [collection.name, onLogDownload, originalUrl]);
 
   const handleDownloadAll = useCallback(async () => {
     setDownloading(true);

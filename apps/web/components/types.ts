@@ -29,5 +29,5 @@ export interface CollectionData {
 export type AppState =
   | { status: 'idle' }
   | { status: 'resolving' }
-  | { status: 'resolved'; video: VideoData; token: string; collection: CollectionData | null }
+  | { status: 'resolved'; video: VideoData; token: string; collection: CollectionData | null; originalUrl: string }
   | { status: 'error'; message: string };
