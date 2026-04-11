@@ -4,3 +4,11 @@ dist/
 .env
 .env.local
 *.tsbuildinfo
+
+# AI coding assistant configs
+.claude/
+.codex/
+.agents/
+skills-lock.json
+CLAUDE.md
+openspec/
