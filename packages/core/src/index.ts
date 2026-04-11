@@ -1,19 +1,20 @@
 export type {
   VideoInfo,
+  CollectionInfo,
   PlatformAdapter,
   DownloadOptions,
   DownloadProgress,
   DownloadResult,
-} from './types.js';
+} from './types';
 
-export { VideoResolver } from './resolver/index.js';
-export { DouyinAdapter } from './adapters/douyin.js';
-export { downloadVideo } from './downloader/index.js';
+export { VideoResolver } from './resolver/index';
+export { DouyinAdapter } from './adapters/douyin';
+export { downloadVideo } from './downloader/index';
 
-import { VideoResolver } from './resolver/index.js';
-import { DouyinAdapter } from './adapters/douyin.js';
-import { downloadVideo } from './downloader/index.js';
-import type { DownloadOptions, DownloadResult } from './types.js';
+import { VideoResolver } from './resolver/index';
+import { DouyinAdapter } from './adapters/douyin';
+import { downloadVideo } from './downloader/index';
+import type { DownloadOptions, DownloadResult } from './types';
 
 /**
  * Download a video from a supported platform URL.

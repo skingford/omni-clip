@@ -1,5 +1,5 @@
-import type { PlatformAdapter, VideoInfo } from '../types.js';
-import { normalizeUrl } from '../utils/url.js';
+import type { PlatformAdapter, VideoInfo } from '../types';
+import { normalizeUrl } from '../utils/url';
 
 export class VideoResolver {
   private adapters: PlatformAdapter[] = [];

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getVideo } from '@/lib/store';
-import { sanitizeFilename } from '@omni-clip/utils/filename.js';
+import { sanitizeFilename } from '@omni-clip/core/utils/filename';
 
 const DOWNLOAD_HEADERS: Record<string, string> = {
   'User-Agent':

@@ -1,0 +1,29 @@
+{
+  "name": "@omni-clip/core",
+  "version": "0.1.0",
+  "description": "Multi-platform video downloader, starting with Douyin",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./resolver": "./src/resolver/index.ts",
+    "./adapters/douyin": "./src/adapters/douyin.ts",
+    "./downloader": "./src/downloader/index.ts",
+    "./utils/filename": "./src/utils/filename.ts",
+    "./utils/url": "./src/utils/url.ts"
+  },
+  "bin": {
+    "omni-clip": "src/cli.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "bun run src/cli.ts"
+  },
+  "keywords": ["video", "downloader", "douyin"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.8.3"
+  }
+}

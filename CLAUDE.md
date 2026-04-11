@@ -5,43 +5,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Run
 
 ```bash
-# CLI (root)
-npm run build          # tsc → dist/
-npm run dev            # tsc --watch
-npm run start          # node dist/cli.js
+# Install (Bun workspaces)
+bun install
 
-# Web (web/)
-cd web
-npm run dev            # Next.js dev server on :3000
-npm run build          # Production build
-npm run start          # Production server
+# CLI
+bun run packages/core/src/cli.ts          # Run CLI directly
+bun run --filter @omni-clip/core start     # Via workspace script
+
+# Web (apps/web)
+bun run dev                                # Next.js dev server on :3000
+bun run --filter @omni-clip/web build      # Production build
+bun run --filter @omni-clip/web start      # Production server
+
+# Type check
+cd packages/core && bunx tsc --noEmit
+cd apps/web && bunx tsc --noEmit
 ```
 
-Both `tsc --noEmit` (root) and `next build` (web/) must pass. Always verify both after changes to `src/`.
+Both type checks must pass. Always verify both after changes to `packages/core/src/`.
 
 ## Architecture
 
-Monorepo with two entry points sharing core code:
+Bun Workspaces monorepo with two packages:
 
-- **`src/`** — CLI library. TypeScript, ESM (`"type": "module"`), zero production dependencies. Outputs to `dist/`.
-- **`web/`** — Next.js 15 (App Router) frontend. Imports `src/` via `@omni-clip/*` webpack alias.
+- **`packages/core/`** (`@omni-clip/core`) — Core library. TypeScript, ESM, zero production dependencies. Exports via `package.json` `exports` map.
+- **`apps/web/`** (`@omni-clip/web`) — Next.js 15 (App Router) frontend. Imports `@omni-clip/core` as a workspace dependency.
 
 ### Adapter Pattern
 
-`PlatformAdapter` interface in `src/types.ts` defines how platforms are added. `VideoResolver` is a registry that routes URLs to the first matching adapter.
+`PlatformAdapter` interface in `packages/core/src/types.ts` defines how platforms are added. `VideoResolver` is a registry that routes URLs to the first matching adapter.
 
-To add a new platform: create `src/adapters/<name>.ts` implementing `PlatformAdapter`, register in `src/cli.ts` and `web/lib/bridge.ts`.
+To add a new platform: create `packages/core/src/adapters/<name>.ts` implementing `PlatformAdapter`, register in `packages/core/src/cli.ts` and `apps/web/lib/bridge.ts`.
 
-### Web ↔ CLI Code Sharing
+### Web ↔ Core Code Sharing
 
-`web/lib/bridge.ts` wraps `VideoResolver` + `DouyinAdapter` for server-side use in API routes. Webpack config in `next.config.ts` handles:
-- `@omni-clip` alias → `../src`
-- `extensionAlias`: `.js` → `['.ts', '.js']` (ESM convention)
-- Parent `src/` added to webpack `resolve.modules` and rule `include` paths
+`apps/web/lib/bridge.ts` wraps `VideoResolver` + `DouyinAdapter` for server-side use in API routes. `@omni-clip/core` is a Bun workspace dependency — `next.config.ts` uses `transpilePackages` to compile the raw `.ts` source.
 
 ### Token Store
 
-Video URLs are never exposed to the client. `web/lib/store.ts` maps UUID tokens to `VideoInfo` with 5-minute TTL. `/api/resolve` returns tokens; `/api/download` proxy-streams video using the stored URL.
+Video URLs are never exposed to the client. `apps/web/lib/store.ts` maps UUID tokens to `VideoInfo` with 5-minute TTL. `/api/resolve` returns tokens; `/api/download` proxy-streams video using the stored URL.
 
 ### Collection/Batch Downloads
 
@@ -49,10 +51,11 @@ Video URLs are never exposed to the client. `web/lib/store.ts` maps UUID tokens 
 
 ## Key Conventions
 
-- **ESM `.js` extensions**: All imports in `src/` use `.js` extensions (`import from './types.js'`). Web's webpack resolves these to `.ts`.
-- **ES2022 target**: Both root and web tsconfigs target ES2022 (required for regex dotAll flag in Douyin adapter).
-- **CSS Modules + CSS Variables**: No Tailwind. Design system tokens in `web/app/globals.css`, component styles in `.module.css` files.
+- **Extensionless imports**: All imports use extensionless specifiers (`import from './types'`). Bun resolves `.ts` natively.
+- **ES2022 target**: Both tsconfigs target ES2022 (required for regex dotAll flag in Douyin adapter).
+- **CSS Modules + CSS Variables**: No Tailwind. Design system tokens in `apps/web/app/globals.css`, component styles in `.module.css` files.
 - **Design system**: Apple-inspired (`DESIGN.md`). Single accent color `#0071e3`, alternating black/`#f5f5f7` sections, system-ui font stack.
+- **Package exports**: `@omni-clip/core` exposes subpath exports (e.g., `@omni-clip/core/utils/filename`). Barrel export in `packages/core/src/index.ts` for main types/classes.
 
 ## Douyin Adapter Notes
 

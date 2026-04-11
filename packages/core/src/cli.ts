@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { resolve } from 'node:path';
-import { VideoResolver } from './resolver/index.js';
-import { DouyinAdapter } from './adapters/douyin.js';
-import { downloadVideo } from './downloader/index.js';
-import type { DownloadProgress } from './types.js';
+import { VideoResolver } from './resolver/index';
+import { DouyinAdapter } from './adapters/douyin';
+import { downloadVideo } from './downloader/index';
+import type { DownloadProgress } from './types';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

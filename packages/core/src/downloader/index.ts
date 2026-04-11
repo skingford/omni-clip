@@ -1,8 +1,8 @@
 import { createWriteStream, mkdirSync, existsSync, unlinkSync, statSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
-import type { DownloadOptions, DownloadProgress, DownloadResult, VideoInfo } from '../types.js';
-import { generateVideoFilename, resolveUniqueFilePath } from '../utils/filename.js';
+import type { DownloadOptions, DownloadProgress, DownloadResult, VideoInfo } from '../types';
+import { generateVideoFilename, resolveUniqueFilePath } from '../utils/filename';
 
 const DOWNLOAD_HEADERS: Record<string, string> = {
   'User-Agent':

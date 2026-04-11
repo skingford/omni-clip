@@ -1,6 +1,5 @@
-import { VideoResolver } from '../../src/resolver/index.js';
-import { DouyinAdapter } from '../../src/adapters/douyin.js';
-import type { VideoInfo, CollectionInfo } from '../../src/types.js';
+import { VideoResolver, DouyinAdapter } from '@omni-clip/core';
+import type { VideoInfo, CollectionInfo } from '@omni-clip/core';
 
 let adapter: DouyinAdapter | null = null;
 let resolver: VideoResolver | null = null;

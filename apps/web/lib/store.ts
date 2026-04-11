@@ -1,4 +1,4 @@
-import type { VideoInfo } from '../../src/types.js';
+import type { VideoInfo } from '@omni-clip/core';
 
 interface StoreEntry {
   videoInfo: VideoInfo;
