@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { getVideo } from '@/lib/store';
+import { setDownloadProgress, clearDownloadProgress } from '@/lib/download-progress-store';
 import { sanitizeFilename } from '@omni-clip/core/utils/filename';
 
 const DOUYIN_HEADERS: Record<string, string> = {
@@ -44,14 +45,30 @@ function getHeadersForPlatform(platform: string): Record<string, string> {
  * Uses spawn (non-blocking) with concurrent fragments for speed.
  * Downloads to a temp file, then streams it to the client.
  */
+/** Parse yt-dlp progress line into structured data. */
+function parseYtdlpProgress(line: string): { percent: number; totalSize: string; speed: string; eta: string; fragment: string } | null {
+  // Match: [download]  XX.X% of ~YY.YYMIB at ZZKiB/s ETA HH:MM:SS (frag N/M)
+  const m = line.match(/\[download\]\s+([\d.]+)%\s+of\s+~?\s*([\d.]+\w+)\s+at\s+([\d.]+\w+\/s)\s+ETA\s+([\d:]+)\s+\(frag\s+(\d+\/\d+)\)/);
+  if (m) return { percent: parseFloat(m[1]), totalSize: m[2], speed: m[3], eta: m[4], fragment: m[5] };
+
+  // Simpler: [download]  XX.X% of ~YY.YYMIB at ZZKiB/s ETA HH:MM:SS
+  const m2 = line.match(/\[download\]\s+([\d.]+)%\s+of\s+~?\s*([\d.]+\w+)\s+at\s+([\d.]+\w+\/s)\s+ETA\s+([\d:]+)/);
+  if (m2) return { percent: parseFloat(m2[1]), totalSize: m2[2], speed: m2[3], eta: m2[4], fragment: '' };
+
+  return null;
+}
+
 async function downloadTencentVideo(
   pageUrl: string,
   filename: string,
+  token: string,
 ): Promise<Response> {
   const tempDir = join(tmpdir(), 'omni-clip-tencent');
   if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true });
 
   const tempFile = join(tempDir, `${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`);
+
+  setDownloadProgress(token, { status: 'downloading', percent: 0, totalSize: '', speed: '', eta: '', fragment: '' });
 
   // Use spawn to avoid blocking the event loop
   await new Promise<void>((resolve, reject) => {
@@ -65,8 +82,22 @@ async function downloadTencentVideo(
     ], { stdio: ['pipe', 'pipe', 'pipe'] });
 
     let stderr = '';
-    let stdout = '';
-    proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    let lastLine = '';
+
+    proc.stdout.on('data', (chunk: Buffer) => {
+      // yt-dlp writes progress to stdout with \r for in-place updates
+      lastLine += chunk.toString();
+      const lines = lastLine.split(/[\r\n]/);
+      lastLine = lines.pop() ?? '';
+      for (const line of lines) {
+        const progress = parseYtdlpProgress(line);
+        if (progress) {
+          setDownloadProgress(token, { status: 'downloading', ...progress });
+        } else if (line.includes('[Merger]') || line.includes('[ffmpeg]')) {
+          setDownloadProgress(token, { status: 'merging', percent: 100, totalSize: '', speed: '', eta: '', fragment: '' });
+        }
+      }
+    });
     proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
 
     const timer = setTimeout(() => {
@@ -77,10 +108,12 @@ async function downloadTencentVideo(
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0) {
+        setDownloadProgress(token, { status: 'done', percent: 100, totalSize: '', speed: '', eta: '', fragment: '' });
         resolve();
       } else {
-        const detail = (stderr || stdout).slice(0, 300);
+        const detail = (stderr || lastLine).slice(0, 300);
         console.error(`[download] yt-dlp failed (code=${code}):\n${detail}`);
+        setDownloadProgress(token, { status: 'error', percent: 0, totalSize: '', speed: '', eta: '', fragment: '' });
         reject(new Error(`yt-dlp download failed: ${detail}`));
       }
     });
@@ -91,6 +124,7 @@ async function downloadTencentVideo(
     });
   }).catch((e) => {
     try { if (existsSync(tempFile)) unlinkSync(tempFile); } catch { /* ignore */ }
+    clearDownloadProgress(token);
     throw e;
   });
 
@@ -101,9 +135,9 @@ async function downloadTencentVideo(
   const fileSize = statSync(tempFile).size;
   const nodeStream = createReadStream(tempFile);
 
-  // Clean up temp file after stream ends or errors
-  nodeStream.on('end', () => { try { unlinkSync(tempFile); } catch { /* ignore */ } });
-  nodeStream.on('error', () => { try { unlinkSync(tempFile); } catch { /* ignore */ } });
+  // Clean up temp file and progress after stream ends or errors
+  nodeStream.on('end', () => { try { unlinkSync(tempFile); } catch { /* ignore */ } clearDownloadProgress(token); });
+  nodeStream.on('error', () => { try { unlinkSync(tempFile); } catch { /* ignore */ } clearDownloadProgress(token); });
 
   const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
@@ -185,7 +219,7 @@ export async function GET(request: Request) {
         .slice(0, 80);
       const prefix = index ? `${index}-` : '';
       const filename = sanitizeFilename(`${prefix}${cleanTitle || videoInfo.author}`) + '.mp4';
-      return await downloadTencentVideo(videoInfo.videoUrl, filename);
+      return await downloadTencentVideo(videoInfo.videoUrl, filename, token);
     }
 
     const headers = getHeadersForPlatform(videoInfo.platform);

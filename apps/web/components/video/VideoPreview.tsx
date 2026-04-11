@@ -58,9 +58,10 @@ export default function VideoPreview({ video, token, onReset, onLogDownload, ori
     const downloadUrl = `/api/download?token=${encodeURIComponent(token)}`;
 
     if (SLOW_DOWNLOAD_PLATFORMS.has(video.platform)) {
-      // Server-side HLS download — takes time, show loading state with progress
+      // Server-side HLS download — takes time, poll server-side yt-dlp progress
+      const pollUrl = `/api/download/progress?token=${encodeURIComponent(token)}`;
       try {
-        const blob = await download(downloadUrl);
+        const blob = await download(downloadUrl, pollUrl);
         triggerBlobDownload(blob, `${video.author}-${video.title}.mp4`);
       } catch (e) {
         showToast(e instanceof Error ? e.message : 'Download failed', 'error');
@@ -108,7 +109,9 @@ export default function VideoPreview({ video, token, onReset, onLogDownload, ori
               <button className={styles.downloadBtn} onClick={handleDownload} disabled={downloading}>
                 {downloading ? <SpinnerIcon /> : <DownloadIcon />}
                 {downloading
-                  ? `Downloading...${progress?.percent != null ? ` ${progress.percent}%` : ''}`
+                  ? progress?.phase === 'server'
+                    ? `Server preparing...${progress.percent != null ? ` ${progress.percent}%` : ''}`
+                    : `Downloading...${progress?.percent != null ? ` ${progress.percent}%` : ''}`
                   : 'Download Video'}
               </button>
               <button className={styles.resetBtn} onClick={onReset}>

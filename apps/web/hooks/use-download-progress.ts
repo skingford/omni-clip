@@ -8,7 +8,7 @@ export type { DownloadProgress };
 export interface UseDownloadProgressReturn {
   progress: DownloadProgress | null;
   downloading: boolean;
-  download: (url: string) => Promise<Blob>;
+  download: (url: string, pollProgressUrl?: string) => Promise<Blob>;
   abort: () => void;
 }
 
@@ -17,14 +17,14 @@ export function useDownloadProgress(): UseDownloadProgressReturn {
   const [downloading, setDownloading] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const download = useCallback(async (url: string): Promise<Blob> => {
+  const download = useCallback(async (url: string, pollProgressUrl?: string): Promise<Blob> => {
     const controller = new AbortController();
     controllerRef.current = controller;
     setDownloading(true);
     setProgress(null);
 
     try {
-      const blob = await downloadWithProgress(url, setProgress, controller.signal);
+      const blob = await downloadWithProgress(url, setProgress, controller.signal, pollProgressUrl);
       return blob;
     } finally {
       setDownloading(false);
