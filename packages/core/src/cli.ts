@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { VideoResolver } from './resolver/index';
 import { DouyinAdapter } from './adapters/douyin';
 import { YouTubeAdapter } from './adapters/youtube';
+import { TencentAdapter } from './adapters/tencent';
 import { downloadVideo } from './downloader/index';
 import type { DownloadProgress } from './types';
 
@@ -40,11 +41,13 @@ Options:
 Supported platforms:
   - Douyin (抖音)
   - YouTube
+  - Tencent Video (腾讯视频)
 
 Examples:
   omni-clip https://v.douyin.com/iRNBho5m/
   omni-clip https://www.youtube.com/watch?v=dQw4w9WgXcQ
   omni-clip https://youtu.be/dQw4w9WgXcQ -o ./videos
+  omni-clip https://v.qq.com/x/page/t0507ed4czx.html
 `);
     process.exit(0);
   }
@@ -72,6 +75,7 @@ Examples:
   const resolver = new VideoResolver();
   resolver.register(new DouyinAdapter());
   resolver.register(new YouTubeAdapter());
+  resolver.register(new TencentAdapter());
 
   try {
     console.log('Resolving video URL...');

@@ -35,7 +35,7 @@ Bun Workspaces monorepo with two packages:
 
 `PlatformAdapter` interface in `packages/core/src/types.ts` defines how platforms are added. `VideoResolver` is a registry that routes URLs to the first matching adapter.
 
-Current adapters: `DouyinAdapter`, `YouTubeAdapter`. To add a new platform: create `packages/core/src/adapters/<name>.ts` implementing `PlatformAdapter`, register in `packages/core/src/cli.ts` and `apps/web/lib/bridge.ts`.
+Current adapters: `DouyinAdapter`, `YouTubeAdapter`, `TencentAdapter`. To add a new platform: create `packages/core/src/adapters/<name>.ts` implementing `PlatformAdapter`, register in `packages/core/src/cli.ts` and `apps/web/lib/bridge.ts`.
 
 ### Web ↔ Core Code Sharing
 
@@ -67,6 +67,15 @@ Video URLs are never exposed to the client. `apps/web/lib/store.ts` maps UUID to
 - Playlist support via `yt-dlp --flat-playlist`
 - URL patterns: `youtube.com/watch`, `youtu.be/`, `/shorts/`, `/embed/`, `m.youtube.com`
 - Adapter gracefully errors with install instructions if yt-dlp is missing
+
+## Tencent Video Adapter Notes
+
+- **Requires `yt-dlp` installed** (`brew install yt-dlp`) — same as YouTube adapter
+- URL patterns: `v.qq.com/x/page/<vid>.html`, `v.qq.com/x/cover/<cid>/<vid>.html`
+- Series/playlist via `v.qq.com/x/cover/<cid>.html` (yt-dlp `VQQSeriesIE`)
+- VIP content: yt-dlp's Tencent extractor has limited VIP support; cookies may help
+- Mobile URLs (`m.v.qq.com`) normalized to desktop URLs automatically
+- Platform identifier: `tencent`
 
 ## Douyin Adapter Notes
 

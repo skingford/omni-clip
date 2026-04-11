@@ -1,4 +1,4 @@
-import { VideoResolver, DouyinAdapter, YouTubeAdapter } from '@omni-clip/core';
+import { VideoResolver, DouyinAdapter, YouTubeAdapter, TencentAdapter } from '@omni-clip/core';
 import type { VideoInfo, CollectionInfo, PlatformAdapter } from '@omni-clip/core';
 
 let resolver: VideoResolver | null = null;
@@ -6,7 +6,7 @@ let adapters: PlatformAdapter[] | null = null;
 
 function getAdapters(): PlatformAdapter[] {
   if (!adapters) {
-    adapters = [new DouyinAdapter(), new YouTubeAdapter()];
+    adapters = [new DouyinAdapter(), new YouTubeAdapter(), new TencentAdapter()];
   }
   return adapters;
 }

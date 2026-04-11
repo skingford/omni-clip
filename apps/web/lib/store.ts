@@ -46,6 +46,8 @@ export function getVideo(token: string): VideoInfo | null {
     store.delete(token);
     return null;
   }
+  // Refresh TTL on access — keeps token alive during slow downloads (e.g. Tencent HLS)
+  entry.expiresAt = Date.now() + TTL_MS;
   return entry.videoInfo;
 }
 
