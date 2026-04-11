@@ -1,20 +1,22 @@
-import { VideoResolver, DouyinAdapter } from '@omni-clip/core';
-import type { VideoInfo, CollectionInfo } from '@omni-clip/core';
+import { VideoResolver, DouyinAdapter, YouTubeAdapter } from '@omni-clip/core';
+import type { VideoInfo, CollectionInfo, PlatformAdapter } from '@omni-clip/core';
 
-let adapter: DouyinAdapter | null = null;
 let resolver: VideoResolver | null = null;
+let adapters: PlatformAdapter[] | null = null;
 
-function getAdapter(): DouyinAdapter {
-  if (!adapter) {
-    adapter = new DouyinAdapter();
+function getAdapters(): PlatformAdapter[] {
+  if (!adapters) {
+    adapters = [new DouyinAdapter(), new YouTubeAdapter()];
   }
-  return adapter;
+  return adapters;
 }
 
 function getResolver(): VideoResolver {
   if (!resolver) {
     resolver = new VideoResolver();
-    resolver.register(getAdapter());
+    for (const adapter of getAdapters()) {
+      resolver.register(adapter);
+    }
   }
   return resolver;
 }
@@ -24,10 +26,14 @@ export async function resolveVideo(url: string): Promise<VideoInfo> {
 }
 
 export async function resolveCollection(url: string): Promise<CollectionInfo | null> {
-  const a = getAdapter();
-  if (!a.canHandle(url)) return null;
-  const canonicalUrl = await a.resolve(url);
-  return a.getCollectionInfo(canonicalUrl);
+  // Find the matching adapter and attempt collection resolution
+  for (const adapter of getAdapters()) {
+    if (adapter.canHandle(url) && adapter.getCollectionInfo) {
+      const canonicalUrl = await adapter.resolve(url);
+      return adapter.getCollectionInfo(canonicalUrl);
+    }
+  }
+  return null;
 }
 
 export { type VideoInfo, type CollectionInfo };

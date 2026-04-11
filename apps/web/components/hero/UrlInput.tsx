@@ -25,7 +25,7 @@ export default function UrlInput({ onSubmit, loading }: UrlInputProps) {
         <input
           type="text"
           className={styles.input}
-          placeholder="Paste a Douyin video link..."
+          placeholder="Paste a video link (YouTube, Douyin)..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           disabled={loading}

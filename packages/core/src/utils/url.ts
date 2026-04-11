@@ -1,8 +1,14 @@
 const DOUYIN_URL_PATTERN = /https?:\/\/(?:www\.)?(?:v\.)?(?:ies)?douyin\.com\/[^\s]+/;
+const YOUTUBE_URL_PATTERN = /https?:\/\/(?:(?:www\.|m\.)?youtube\.com|youtu\.be)\/[^\s]+/;
 
 export function extractUrlFromText(text: string): string | null {
-  const match = text.match(DOUYIN_URL_PATTERN);
-  return match ? match[0].replace(/[）)]+$/, '') : null;
+  const douyinMatch = text.match(DOUYIN_URL_PATTERN);
+  if (douyinMatch) return douyinMatch[0].replace(/[）)]+$/, '');
+
+  const youtubeMatch = text.match(YOUTUBE_URL_PATTERN);
+  if (youtubeMatch) return youtubeMatch[0].replace(/[）)]+$/, '');
+
+  return null;
 }
 
 export function isDouyinUrl(url: string): boolean {

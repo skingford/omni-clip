@@ -35,7 +35,7 @@ Bun Workspaces monorepo with two packages:
 
 `PlatformAdapter` interface in `packages/core/src/types.ts` defines how platforms are added. `VideoResolver` is a registry that routes URLs to the first matching adapter.
 
-To add a new platform: create `packages/core/src/adapters/<name>.ts` implementing `PlatformAdapter`, register in `packages/core/src/cli.ts` and `apps/web/lib/bridge.ts`.
+Current adapters: `DouyinAdapter`, `YouTubeAdapter`. To add a new platform: create `packages/core/src/adapters/<name>.ts` implementing `PlatformAdapter`, register in `packages/core/src/cli.ts` and `apps/web/lib/bridge.ts`.
 
 ### Web ↔ Core Code Sharing
 
@@ -58,6 +58,15 @@ Video URLs are never exposed to the client. `apps/web/lib/store.ts` maps UUID to
 - **Component organization**: Feature-based directories under `apps/web/components/` — `layout/`, `hero/`, `video/`, `collection/`. Shared types in `components/types.ts`. Custom hooks in `hooks/`.
 - **Server/Client boundary**: `page.tsx` is a Server Component. Client interactivity is encapsulated in `VideoResolverClient` (`'use client'`). `Navigation` and `Footer` remain server-rendered.
 - **Package exports**: `@omni-clip/core` exposes subpath exports (e.g., `@omni-clip/core/utils/filename`). Barrel export in `packages/core/src/index.ts` for main types/classes.
+
+## YouTube Adapter Notes
+
+- **Requires `yt-dlp` installed** (`brew install yt-dlp`) — YouTube's PoToken requirement makes zero-dep extraction impossible
+- Video metadata (title, author, thumbnail, duration) extracted from watch page HTML (`ytInitialPlayerResponse`)
+- Streaming URLs obtained via `yt-dlp --dump-json` with format `best[ext=mp4][protocol=https]`
+- Playlist support via `yt-dlp --flat-playlist`
+- URL patterns: `youtube.com/watch`, `youtu.be/`, `/shorts/`, `/embed/`, `m.youtube.com`
+- Adapter gracefully errors with install instructions if yt-dlp is missing
 
 ## Douyin Adapter Notes
 

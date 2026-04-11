@@ -8,6 +8,7 @@
     "./types": "./src/types.ts",
     "./resolver": "./src/resolver/index.ts",
     "./adapters/douyin": "./src/adapters/douyin.ts",
+    "./adapters/youtube": "./src/adapters/youtube.ts",
     "./downloader": "./src/downloader/index.ts",
     "./utils/filename": "./src/utils/filename.ts",
     "./utils/url": "./src/utils/url.ts"
@@ -20,7 +21,7 @@
     "dev": "tsc --watch",
     "start": "bun run src/cli.ts"
   },
-  "keywords": ["video", "downloader", "douyin"],
+  "keywords": ["video", "downloader", "douyin", "youtube"],
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.6.0",

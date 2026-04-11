@@ -11,7 +11,7 @@ export default function HeroSection({ onSubmit, loading }: HeroSectionProps) {
     <section className={styles.hero}>
       <h1 className={`text-display-hero ${styles.title}`}>omni-clip</h1>
       <p className={styles.subtitle}>
-        Paste a video link, download it instantly. No watermarks, no hassle.
+        Download videos from YouTube and Douyin — just paste a link.
       </p>
       <div className={styles.inputArea}>
         <UrlInput onSubmit={onSubmit} loading={loading} />

@@ -2,32 +2,60 @@ import { NextResponse } from 'next/server';
 import { getVideo } from '@/lib/store';
 import { sanitizeFilename } from '@omni-clip/core/utils/filename';
 
-const DOWNLOAD_HEADERS: Record<string, string> = {
+const DOUYIN_HEADERS: Record<string, string> = {
   'User-Agent':
     'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36',
   Referer: 'https://www.douyin.com/',
 };
 
-async function fetchFromUrl(url: string): Promise<Response> {
-  // Follow Douyin play URL redirect manually
-  const redirectRes = await fetch(url, {
-    headers: DOWNLOAD_HEADERS,
-    redirect: 'manual',
-  });
+const YOUTUBE_HEADERS: Record<string, string> = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  Origin: 'https://www.youtube.com',
+  Referer: 'https://www.youtube.com/',
+};
+
+function getHeadersForPlatform(platform: string): Record<string, string> {
+  switch (platform) {
+    case 'douyin':
+      return DOUYIN_HEADERS;
+    case 'youtube':
+      return YOUTUBE_HEADERS;
+    default:
+      return YOUTUBE_HEADERS;
+  }
+}
+
+async function fetchDouyinUrl(url: string, headers: Record<string, string>): Promise<Response> {
+  // Douyin play URLs redirect 301/302 to CDN — follow manually
+  const redirectRes = await fetch(url, { headers, redirect: 'manual' });
 
   if (redirectRes.status === 302 || redirectRes.status === 301) {
     const cdnUrl = redirectRes.headers.get('location') || url;
-    return fetch(cdnUrl, { headers: DOWNLOAD_HEADERS });
+    return fetch(cdnUrl, { headers });
   }
 
-  // Not a redirect — might be a direct CDN URL
-  return fetch(url, { headers: DOWNLOAD_HEADERS });
+  // Already a direct CDN URL — return as-is (don't double-fetch)
+  return redirectRes;
 }
 
-async function fetchVideoWithFallbacks(urls: string[]): Promise<Response | null> {
+async function fetchVideoUrl(url: string, headers: Record<string, string>, platform: string): Promise<Response> {
+  if (platform === 'douyin') {
+    return fetchDouyinUrl(url, headers);
+  }
+
+  // YouTube and others: just follow redirects automatically
+  return fetch(url, { headers, redirect: 'follow' });
+}
+
+async function fetchVideoWithFallbacks(
+  urls: string[],
+  headers: Record<string, string>,
+  platform: string,
+): Promise<Response | null> {
   for (const url of urls) {
     try {
-      const res = await fetchFromUrl(url);
+      const res = await fetchVideoUrl(url, headers, platform);
       if (res.ok) return res;
     } catch {
       // try next URL
@@ -57,9 +85,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Try all available URLs (primary + CDN mirrors)
+    const headers = getHeadersForPlatform(videoInfo.platform);
     const urls = videoInfo.videoUrls ?? [videoInfo.videoUrl];
-    const cdnResponse = await fetchVideoWithFallbacks(urls);
+    const cdnResponse = await fetchVideoWithFallbacks(urls, headers, videoInfo.platform);
 
     if (!cdnResponse) {
       return NextResponse.json(
@@ -79,15 +107,15 @@ export async function GET(request: Request) {
     const filename = sanitizeFilename(`${prefix}${cleanTitle || videoInfo.author}`) + '.mp4';
 
     const contentLength = cdnResponse.headers.get('content-length');
-    const headers: Record<string, string> = {
+    const responseHeaders: Record<string, string> = {
       'Content-Type': 'video/mp4',
       'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
     };
     if (contentLength) {
-      headers['Content-Length'] = contentLength;
+      responseHeaders['Content-Length'] = contentLength;
     }
 
-    return new Response(cdnResponse.body, { headers });
+    return new Response(cdnResponse.body, { headers: responseHeaders });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(

@@ -3,6 +3,7 @@
 import { resolve } from 'node:path';
 import { VideoResolver } from './resolver/index';
 import { DouyinAdapter } from './adapters/douyin';
+import { YouTubeAdapter } from './adapters/youtube';
 import { downloadVideo } from './downloader/index';
 import type { DownloadProgress } from './types';
 
@@ -38,11 +39,12 @@ Options:
 
 Supported platforms:
   - Douyin (抖音)
+  - YouTube
 
 Examples:
   omni-clip https://v.douyin.com/iRNBho5m/
-  omni-clip https://www.douyin.com/video/7356534653456345 -o ./videos
-  omni-clip "4.36 复制打开抖音... https://v.douyin.com/iRNBho5m/"
+  omni-clip https://www.youtube.com/watch?v=dQw4w9WgXcQ
+  omni-clip https://youtu.be/dQw4w9WgXcQ -o ./videos
 `);
     process.exit(0);
   }
@@ -69,6 +71,7 @@ Examples:
   // Set up resolver with adapters
   const resolver = new VideoResolver();
   resolver.register(new DouyinAdapter());
+  resolver.register(new YouTubeAdapter());
 
   try {
     console.log('Resolving video URL...');
