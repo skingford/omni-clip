@@ -12,3 +12,4 @@ dist/
 skills-lock.json
 CLAUDE.md
 openspec/
+.playwright-mcp
