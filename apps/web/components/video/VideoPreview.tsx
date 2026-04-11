@@ -1,17 +1,7 @@
 'use client';
 
+import type { VideoData } from '@/components/types';
 import styles from './VideoPreview.module.css';
-
-interface VideoData {
-  id: string;
-  title: string;
-  author: string;
-  description: string;
-  coverUrl: string;
-  duration?: number;
-  hasWatermark: boolean;
-  platform: string;
-}
 
 interface VideoPreviewProps {
   video: VideoData;
@@ -41,18 +31,18 @@ export default function VideoPreview({ video, token, onReset }: VideoPreviewProp
       <div className={styles.container}>
         <div className={styles.card}>
           <div className={styles.cover}>
-            {video.coverUrl && (
+            {video.coverUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={video.coverUrl}
                 alt={video.title}
                 className={styles.coverImage}
               />
-            )}
+            ) : null}
             <span className={styles.badge}>{video.platform}</span>
-            {video.duration != null && (
+            {video.duration != null ? (
               <span className={styles.duration}>{formatDuration(video.duration)}</span>
-            )}
+            ) : null}
           </div>
           <div className={styles.info}>
             <h2 className={styles.title}>{video.title}</h2>
@@ -80,18 +70,5 @@ function DownloadIcon() {
       <polyline points="7 10 12 15 17 10" />
       <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
-  );
-}
-
-export function VideoError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <section className={styles.errorSection}>
-      <div className={styles.errorCard}>
-        <p className={styles.errorMessage}>{message}</p>
-        <button className={styles.retryBtn} onClick={onRetry}>
-          Try Again
-        </button>
-      </div>
-    </section>
   );
 }

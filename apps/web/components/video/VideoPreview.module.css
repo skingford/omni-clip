@@ -146,64 +146,6 @@
   background: rgba(0, 113, 227, 0.06);
 }
 
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.errorSection {
-  background: var(--color-light-gray);
-  padding: 60px 24px;
-}
-
-.errorCard {
-  max-width: 480px;
-  margin: 0 auto;
-  text-align: center;
-  padding: 40px 24px;
-}
-
-.errorMessage {
-  font-family: var(--font-text);
-  font-size: 17px;
-  font-weight: 400;
-  line-height: 1.47;
-  letter-spacing: -0.374px;
-  color: var(--color-text-secondary);
-  margin-bottom: 24px;
-  overflow-wrap: break-word;
-  word-break: break-all;
-}
-
-.retryBtn {
-  height: 44px;
-  padding: 0 24px;
-  background: var(--color-near-black);
-  color: var(--color-text-white);
-  border: 1px solid transparent;
-  border-radius: var(--radius-standard);
-  font-family: var(--font-text);
-  font-size: 17px;
-  font-weight: 400;
-  letter-spacing: -0.374px;
-  transition: opacity 0.2s ease;
-}
-
-.retryBtn:hover {
-  opacity: 0.85;
-}
-
 @media (max-width: 480px) {
   .section {
     padding: 48px 16px;

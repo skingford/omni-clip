@@ -1,24 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import type { CollectionData, CollectionVideoData } from '@/components/types';
 import styles from './CollectionView.module.css';
-
-interface CollectionVideoData {
-  id: string;
-  title: string;
-  author: string;
-  coverUrl: string;
-  duration?: number;
-  token: string;
-}
-
-interface CollectionData {
-  id: string;
-  name: string;
-  desc: string;
-  videoCount: number;
-  videos: CollectionVideoData[];
-}
 
 interface CollectionViewProps {
   collection: CollectionData;
@@ -118,16 +102,16 @@ export default function CollectionView({ collection, onReset }: CollectionViewPr
             <h2 className={styles.collectionName}>{collection.name}</h2>
             <p className={styles.videoCount}>
               {collection.videoCount} videos
-              {doneCount > 0 && <> &middot; {doneCount} downloaded</>}
-              {failedCount > 0 && <> &middot; <span className={styles.failedText}>{failedCount} failed</span></>}
+              {doneCount > 0 ? <> &middot; {doneCount} downloaded</> : null}
+              {failedCount > 0 ? <> &middot; <span className={styles.failedText}>{failedCount} failed</span></> : null}
             </p>
           </div>
           <div className={styles.actions}>
-            {downloading && (
+            {downloading ? (
               <span className={styles.progress}>
                 {progress.current}/{progress.total}
               </span>
-            )}
+            ) : null}
             <button
               className={styles.downloadAllBtn}
               onClick={handleDownloadAll}
@@ -149,16 +133,16 @@ export default function CollectionView({ collection, onReset }: CollectionViewPr
               <div key={video.id} className={`${styles.item} ${status === 'failed' ? styles.itemFailed : ''}`}>
                 <span className={styles.index}>{index + 1}</span>
                 <div className={styles.thumb}>
-                  {video.coverUrl && (
+                  {video.coverUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={video.coverUrl} alt={video.title} className={styles.thumbImg} />
-                  )}
+                  ) : null}
                 </div>
                 <div className={styles.itemInfo}>
                   <p className={styles.itemTitle}>{video.title}</p>
-                  {video.duration != null && (
+                  {video.duration != null ? (
                     <p className={styles.itemDuration}>{formatDuration(video.duration)}</p>
-                  )}
+                  ) : null}
                 </div>
                 <button
                   className={`${styles.itemDownloadBtn} ${status === 'done' ? styles.downloaded : ''} ${status === 'failed' ? styles.failedBtn : ''}`}
@@ -166,10 +150,10 @@ export default function CollectionView({ collection, onReset }: CollectionViewPr
                   disabled={status === 'loading'}
                   title={status === 'failed' ? 'Retry' : 'Download'}
                 >
-                  {status === 'loading' && <SpinnerIcon />}
-                  {status === 'done' && <CheckIcon />}
-                  {status === 'failed' && <RetryIcon />}
-                  {status === 'idle' && <DownloadSmallIcon />}
+                  {status === 'loading' ? <SpinnerIcon /> : null}
+                  {status === 'done' ? <CheckIcon /> : null}
+                  {status === 'failed' ? <RetryIcon /> : null}
+                  {status === 'idle' ? <DownloadSmallIcon /> : null}
                 </button>
               </div>
             );

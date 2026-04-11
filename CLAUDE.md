@@ -53,8 +53,10 @@ Video URLs are never exposed to the client. `apps/web/lib/store.ts` maps UUID to
 
 - **Extensionless imports**: All imports use extensionless specifiers (`import from './types'`). Bun resolves `.ts` natively.
 - **ES2022 target**: Both tsconfigs target ES2022 (required for regex dotAll flag in Douyin adapter).
-- **CSS Modules + CSS Variables**: No Tailwind. Design system tokens in `apps/web/app/globals.css`, component styles in `.module.css` files.
+- **CSS Modules + CSS Variables**: No Tailwind. Design system tokens in `apps/web/app/globals.css`, component styles co-located in `.module.css` files.
 - **Design system**: Apple-inspired (`DESIGN.md`). Single accent color `#0071e3`, alternating black/`#f5f5f7` sections, system-ui font stack.
+- **Component organization**: Feature-based directories under `apps/web/components/` — `layout/`, `hero/`, `video/`, `collection/`. Shared types in `components/types.ts`. Custom hooks in `hooks/`.
+- **Server/Client boundary**: `page.tsx` is a Server Component. Client interactivity is encapsulated in `VideoResolverClient` (`'use client'`). `Navigation` and `Footer` remain server-rendered.
 - **Package exports**: `@omni-clip/core` exposes subpath exports (e.g., `@omni-clip/core/utils/filename`). Barrel export in `packages/core/src/index.ts` for main types/classes.
 
 ## Douyin Adapter Notes

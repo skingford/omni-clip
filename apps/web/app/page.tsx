@@ -1,116 +1,13 @@
-'use client';
-
-import { useState } from 'react';
-import Navigation from '@/components/Navigation';
-import HeroSection from '@/components/HeroSection';
-import VideoPreview, { VideoError } from '@/components/VideoPreview';
-import CollectionView from '@/components/CollectionView';
-import Footer from '@/components/Footer';
-
-interface VideoData {
-  id: string;
-  title: string;
-  author: string;
-  description: string;
-  coverUrl: string;
-  duration?: number;
-  hasWatermark: boolean;
-  platform: string;
-}
-
-interface CollectionVideoData {
-  id: string;
-  title: string;
-  author: string;
-  coverUrl: string;
-  duration?: number;
-  token: string;
-}
-
-interface CollectionData {
-  id: string;
-  name: string;
-  desc: string;
-  videoCount: number;
-  videos: CollectionVideoData[];
-}
-
-type AppState =
-  | { status: 'idle' }
-  | { status: 'resolving' }
-  | { status: 'resolved'; video: VideoData; token: string; collection: CollectionData | null }
-  | { status: 'error'; message: string };
+import Navigation from '@/components/layout/Navigation';
+import Footer from '@/components/layout/Footer';
+import VideoResolverClient from '@/components/hero/VideoResolverClient';
 
 export default function Home() {
-  const [state, setState] = useState<AppState>({ status: 'idle' });
-
-  async function handleResolve(url: string) {
-    setState({ status: 'resolving' });
-    try {
-      const res = await fetch('/api/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-
-      if (!res.ok) {
-        // Try to parse error JSON, fall back to status text
-        try {
-          const data = await res.json();
-          setState({ status: 'error', message: data.error || `Server error (${res.status})` });
-        } catch {
-          setState({ status: 'error', message: `Server error (${res.status})` });
-        }
-        return;
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        setState({
-          status: 'resolved',
-          video: data.data,
-          token: data.token,
-          collection: data.collection ?? null,
-        });
-      } else {
-        setState({ status: 'error', message: data.error });
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown error';
-      setState({ status: 'error', message: `Network error: ${msg}` });
-    }
-  }
-
-  function handleReset() {
-    setState({ status: 'idle' });
-  }
-
-  const showCollection = state.status === 'resolved' && state.collection;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navigation />
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <HeroSection
-          onSubmit={handleResolve}
-          loading={state.status === 'resolving'}
-        />
-        {state.status === 'resolved' && !showCollection && (
-          <VideoPreview
-            video={state.video}
-            token={state.token}
-            onReset={handleReset}
-          />
-        )}
-        {showCollection && (
-          <CollectionView
-            collection={state.collection!}
-            onReset={handleReset}
-          />
-        )}
-        {state.status === 'error' && (
-          <VideoError message={state.message} onRetry={handleReset} />
-        )}
+        <VideoResolverClient />
       </main>
       <Footer />
     </div>
