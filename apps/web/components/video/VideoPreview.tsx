@@ -2,6 +2,9 @@
 
 import type { VideoData } from '@/components/types';
 import type { DownloadLogEntry } from '@/lib/download-log';
+import type { ToastType } from '@/components/ui/Toast';
+import { useDownloadProgress } from '@/hooks/use-download-progress';
+import ProgressBar from '@/components/ui/ProgressBar';
 import styles from './VideoPreview.module.css';
 
 interface VideoPreviewProps {
@@ -10,6 +13,7 @@ interface VideoPreviewProps {
   onReset: () => void;
   onLogDownload: (entry: DownloadLogEntry) => Promise<void>;
   originalUrl: string;
+  showToast: (message: string, type?: ToastType) => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -18,15 +22,54 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function VideoPreview({ video, token, onReset, onLogDownload, originalUrl }: VideoPreviewProps) {
-  function handleDownload() {
-    const a = document.createElement('a');
-    a.href = `/api/download?token=${encodeURIComponent(token)}`;
-    a.download = `${video.author}-${video.title}.mp4`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+/** Platforms whose download requires server-side processing (HLS → MP4). */
+const SLOW_DOWNLOAD_PLATFORMS = new Set(['tencent']);
+
+/** Safely trigger a file download from a Blob without conflicting with React's DOM. */
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    a.parentNode?.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+/** Safely trigger a file download from a URL. */
+function triggerLinkDownload(url: string, filename: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { a.parentNode?.removeChild(a); }, 100);
+}
+
+export default function VideoPreview({ video, token, onReset, onLogDownload, originalUrl, showToast }: VideoPreviewProps) {
+  const { progress, downloading, download } = useDownloadProgress();
+
+  async function handleDownload() {
+    const downloadUrl = `/api/download?token=${encodeURIComponent(token)}`;
+
+    if (SLOW_DOWNLOAD_PLATFORMS.has(video.platform)) {
+      // Server-side HLS download — takes time, show loading state with progress
+      try {
+        const blob = await download(downloadUrl);
+        triggerBlobDownload(blob, `${video.author}-${video.title}.mp4`);
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : 'Download failed', 'error');
+        return;
+      }
+    } else {
+      // Direct CDN proxy — browser handles the download immediately
+      triggerLinkDownload(downloadUrl, `${video.author}-${video.title}.mp4`);
+    }
 
     onLogDownload({
       videoId: video.id,
@@ -62,18 +105,36 @@ export default function VideoPreview({ video, token, onReset, onLogDownload, ori
             <h2 className={styles.title}>{video.title}</h2>
             <p className={styles.author}>{video.author}</p>
             <div className={styles.actions}>
-              <button className={styles.downloadBtn} onClick={handleDownload}>
-                <DownloadIcon />
-                Download Video
+              <button className={styles.downloadBtn} onClick={handleDownload} disabled={downloading}>
+                {downloading ? <SpinnerIcon /> : <DownloadIcon />}
+                {downloading
+                  ? `Downloading...${progress?.percent != null ? ` ${progress.percent}%` : ''}`
+                  : 'Download Video'}
               </button>
               <button className={styles.resetBtn} onClick={onReset}>
                 New Link
               </button>
             </div>
           </div>
+          {downloading && (
+            <ProgressBar
+              percent={progress?.percent ?? null}
+              loaded={progress?.loaded ?? 0}
+              total={progress?.total ?? null}
+              compact
+            />
+          )}
         </div>
       </div>
     </section>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg className={styles.spinner} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
   );
 }
 

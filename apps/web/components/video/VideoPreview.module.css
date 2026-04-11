@@ -90,6 +90,7 @@
   margin-bottom: 20px;
 }
 
+
 .actions {
   display: flex;
   align-items: center;
@@ -123,8 +124,17 @@
 }
 
 .downloadBtn:disabled {
-  opacity: 0.5;
+  opacity: 0.7;
   cursor: not-allowed;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .resetBtn {

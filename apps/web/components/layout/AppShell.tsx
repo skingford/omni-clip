@@ -3,13 +3,16 @@
 import { useState, useCallback } from 'react';
 import { useVideoResolver } from '@/hooks/use-video-resolver';
 import { useDownloadLog } from '@/hooks/use-download-log';
+import { useToast } from '@/hooks/use-toast';
 import Navigation from './Navigation';
 import VideoResolverClient from '@/components/hero/VideoResolverClient';
 import DownloadHistory from '@/components/history/DownloadHistory';
+import Toast from '@/components/ui/Toast';
 
 export default function AppShell() {
   const { state, handleResolve, handleReset } = useVideoResolver();
   const { history, log, remove } = useDownloadLog();
+  const { items: toastItems, show: showToast, dismiss: dismissToast } = useToast();
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const handleRedownload = useCallback((url: string) => {
@@ -32,6 +35,7 @@ export default function AppShell() {
           onReset={handleReset}
           onLogDownload={log}
           originalUrl={originalUrl}
+          showToast={showToast}
         />
       </main>
       <DownloadHistory
@@ -41,6 +45,7 @@ export default function AppShell() {
         onRedownload={handleRedownload}
         onDelete={remove}
       />
+      <Toast items={toastItems} onDismiss={dismissToast} />
     </>
   );
 }

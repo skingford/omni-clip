@@ -2,6 +2,7 @@
 
 import type { AppState } from '@/components/types';
 import type { DownloadLogEntry } from '@/lib/download-log';
+import type { ToastType } from '@/components/ui/Toast';
 import HeroSection from '@/components/hero/HeroSection';
 import VideoPreview from '@/components/video/VideoPreview';
 import VideoError from '@/components/video/VideoError';
@@ -13,6 +14,7 @@ interface VideoResolverClientProps {
   onReset: () => void;
   onLogDownload: (entry: DownloadLogEntry) => Promise<void>;
   originalUrl: string;
+  showToast: (message: string, type?: ToastType) => void;
 }
 
 export default function VideoResolverClient({
@@ -21,6 +23,7 @@ export default function VideoResolverClient({
   onReset,
   onLogDownload,
   originalUrl,
+  showToast,
 }: VideoResolverClientProps) {
   const isResolved = state.status === 'resolved';
   const showCollection = isResolved && state.collection;
@@ -38,6 +41,7 @@ export default function VideoResolverClient({
           onReset={onReset}
           onLogDownload={onLogDownload}
           originalUrl={originalUrl}
+          showToast={showToast}
         />
       ) : null}
       {showCollection ? (
@@ -46,6 +50,7 @@ export default function VideoResolverClient({
           onReset={onReset}
           onLogDownload={onLogDownload}
           originalUrl={originalUrl}
+          showToast={showToast}
         />
       ) : null}
       {state.status === 'error' ? (

@@ -156,8 +156,15 @@
   object-fit: cover;
 }
 
-.itemInfo {
+.itemContent {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.itemInfo {
   min-width: 0;
 }
 

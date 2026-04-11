@@ -3,6 +3,9 @@
 import { useState, useCallback } from 'react';
 import type { CollectionData, CollectionVideoData } from '@/components/types';
 import type { DownloadLogEntry } from '@/lib/download-log';
+import type { ToastType } from '@/components/ui/Toast';
+import { downloadWithProgress, type DownloadProgress } from '@/lib/download-with-progress';
+import ProgressBar from '@/components/ui/ProgressBar';
 import styles from './CollectionView.module.css';
 
 interface CollectionViewProps {
@@ -10,6 +13,7 @@ interface CollectionViewProps {
   onReset: () => void;
   onLogDownload: (entry: DownloadLogEntry) => Promise<void>;
   originalUrl: string;
+  showToast: (message: string, type?: ToastType) => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -21,6 +25,7 @@ function formatDuration(seconds: number): string {
 async function downloadVideo(
   token: string,
   title: string,
+  onProgress: (p: DownloadProgress) => void,
   collectionName?: string,
   index?: number,
 ): Promise<boolean> {
@@ -29,25 +34,24 @@ async function downloadVideo(
   if (index != null) params.set('index', String(index + 1).padStart(2, '0'));
 
   try {
-    const res = await fetch(`/api/download?${params}`);
-    if (!res.ok) return false;
-
-    const blob = await res.blob();
+    const blob = await downloadWithProgress(`/api/download?${params}`, onProgress);
     if (blob.type === 'application/json' || blob.size < 1000) return false;
 
-    const url = URL.createObjectURL(blob);
     const cleanTitle = title.replace(/#[^\s#]*/g, '').replace(/@[^\s@]*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
     const prefix = index != null ? `${String(index + 1).padStart(2, '0')}-` : '';
     const filename = `${prefix}${cleanTitle || 'video'}.mp4`;
 
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      a.parentNode?.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
     return true;
   } catch {
     return false;
@@ -60,6 +64,7 @@ export default function CollectionView({ collection, onReset, onLogDownload, ori
   const [statusMap, setStatusMap] = useState<Record<string, ItemStatus>>({});
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, failed: 0 });
+  const [progressMap, setProgressMap] = useState<Record<string, DownloadProgress>>({});
 
   function setStatus(id: string, status: ItemStatus) {
     setStatusMap((prev) => ({ ...prev, [id]: status }));
@@ -67,7 +72,14 @@ export default function CollectionView({ collection, onReset, onLogDownload, ori
 
   const handleDownloadOne = useCallback(async (video: CollectionVideoData, index: number) => {
     setStatus(video.id, 'loading');
-    const ok = await downloadVideo(video.token, video.title, collection.name, index);
+    const ok = await downloadVideo(
+      video.token,
+      video.title,
+      (p) => setProgressMap((prev) => ({ ...prev, [video.id]: p })),
+      collection.name,
+      index,
+    );
+    setProgressMap((prev) => { const next = { ...prev }; delete next[video.id]; return next; });
     setStatus(video.id, ok ? 'done' : 'failed');
     if (ok) {
       onLogDownload({
@@ -92,7 +104,14 @@ export default function CollectionView({ collection, onReset, onLogDownload, ori
     for (let i = 0; i < total; i++) {
       const video = collection.videos[i];
       setStatus(video.id, 'loading');
-      const ok = await downloadVideo(video.token, video.title, collection.name, i);
+      const ok = await downloadVideo(
+        video.token,
+        video.title,
+        (p) => setProgressMap((prev) => ({ ...prev, [video.id]: p })),
+        collection.name,
+        i,
+      );
+      setProgressMap((prev) => { const next = { ...prev }; delete next[video.id]; return next; });
       setStatus(video.id, ok ? 'done' : 'failed');
       if (!ok) failed++;
       setProgress({ current: i + 1, total, failed });
@@ -153,11 +172,21 @@ export default function CollectionView({ collection, onReset, onLogDownload, ori
                     <img src={video.coverUrl} alt={video.title} className={styles.thumbImg} />
                   ) : null}
                 </div>
-                <div className={styles.itemInfo}>
-                  <p className={styles.itemTitle}>{video.title}</p>
-                  {video.duration != null ? (
-                    <p className={styles.itemDuration}>{formatDuration(video.duration)}</p>
-                  ) : null}
+                <div className={styles.itemContent}>
+                  <div className={styles.itemInfo}>
+                    <p className={styles.itemTitle}>{video.title}</p>
+                    {video.duration != null ? (
+                      <p className={styles.itemDuration}>{formatDuration(video.duration)}</p>
+                    ) : null}
+                  </div>
+                  {status === 'loading' && progressMap[video.id] && (
+                    <ProgressBar
+                      percent={progressMap[video.id].percent}
+                      loaded={progressMap[video.id].loaded}
+                      total={progressMap[video.id].total}
+                      compact
+                    />
+                  )}
                 </div>
                 <button
                   className={`${styles.itemDownloadBtn} ${status === 'done' ? styles.downloaded : ''} ${status === 'failed' ? styles.failedBtn : ''}`}
