@@ -43,6 +43,16 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+const PLATFORM_NAMES: Record<string, string> = {
+  youtube: 'YouTube',
+  douyin: 'Douyin',
+  collection: 'Collection',
+};
+
+function formatPlatform(platform: string): string {
+  return PLATFORM_NAMES[platform.toLowerCase()] || platform;
+}
+
 export default function DownloadHistory({
   open,
   onClose,
@@ -116,7 +126,7 @@ export default function DownloadHistory({
             </div>
           ) : (
             dayGroups.map((group) => (
-              <div key={group.label}>
+              <div key={group.label} className={styles.dayGroup}>
                 <div className={styles.dayHeader}>
                   <span>{group.label}</span>
                   <span className={styles.dayCount}>{group.count}</span>
@@ -141,11 +151,14 @@ export default function DownloadHistory({
                     <div className={styles.itemInfo}>
                       <p className={styles.itemTitle}>{entry.title || entry.author}</p>
                       <p className={styles.itemMeta}>
-                        <span className={styles.platform}>{entry.platform}</span>
+                        <span>{formatPlatform(entry.platform)}</span>
                         {entry.duration != null ? (
-                          <> &middot; {formatDuration(entry.duration)}</>
+                          <span> &middot; {formatDuration(entry.duration)}</span>
                         ) : null}
-                        <> &middot; {formatTime(entry.downloadedAt)}</>
+                        <span className={styles.timeTag}>
+                          <SmallClockIcon />
+                          {formatTime(entry.downloadedAt)}
+                        </span>
                         {(entry.downloadCount || 1) > 1 ? (
                           <span className={styles.downloadCount}>x{entry.downloadCount}</span>
                         ) : null}
@@ -212,6 +225,15 @@ function EmptyIcon() {
       <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
       <line x1="8" y1="21" x2="16" y2="21" />
       <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  );
+}
+
+function SmallClockIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }

@@ -84,7 +84,7 @@
   padding: 8px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 /* Empty state */
@@ -98,6 +98,13 @@
   color: var(--color-text-tertiary);
   font-family: var(--font-text);
   font-size: 15px;
+}
+
+/* Day group */
+.dayGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* Day header */
@@ -133,9 +140,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 0;
+  padding-right: 12px;
   background: #ffffff;
   border-radius: var(--radius-standard);
+  overflow: hidden;
   transition: box-shadow 0.2s ease;
 }
 
@@ -145,10 +154,8 @@
 
 /* Thumbnail */
 .thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
-  overflow: hidden;
+  width: 80px;
+  align-self: stretch;
   flex-shrink: 0;
   background: var(--color-dark-surface-1);
 }
@@ -156,7 +163,7 @@
 .thumbImg {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .thumbFallback {
@@ -172,6 +179,7 @@
 .itemInfo {
   flex: 1;
   min-width: 0;
+  padding: 10px 0;
 }
 
 .itemTitle {
@@ -182,7 +190,9 @@
   color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .itemMeta {
@@ -197,8 +207,12 @@
   flex-wrap: wrap;
 }
 
-.platform {
-  text-transform: capitalize;
+.timeTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  color: var(--color-text-tertiary);
 }
 
 .downloadCount {
