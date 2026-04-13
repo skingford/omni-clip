@@ -24,9 +24,6 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/** Platforms whose download requires server-side processing (HLS → MP4). */
-const SLOW_DOWNLOAD_PLATFORMS = new Set(['tencent']);
-
 /** Safely trigger a file download from a Blob without conflicting with React's DOM. */
 function triggerBlobDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -42,17 +39,6 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   }, 100);
 }
 
-/** Safely trigger a file download from a URL. */
-function triggerLinkDownload(url: string, filename: string) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { a.parentNode?.removeChild(a); }, 100);
-}
-
 /** Platforms that support online playback via third-party parsing. */
 const PLAYABLE_PLATFORMS = new Set(['tencent']);
 
@@ -63,20 +49,15 @@ export default function VideoPreview({ video, token, onReset, onLogDownload, ori
 
   async function handleDownload() {
     const downloadUrl = `/api/download?token=${encodeURIComponent(token)}`;
+    // All platforms now poll server-side progress for speed/ETA
+    const pollUrl = `/api/download/progress?token=${encodeURIComponent(token)}`;
 
-    if (SLOW_DOWNLOAD_PLATFORMS.has(video.platform)) {
-      // Server-side HLS download — takes time, poll server-side yt-dlp progress
-      const pollUrl = `/api/download/progress?token=${encodeURIComponent(token)}`;
-      try {
-        const blob = await download(downloadUrl, pollUrl);
-        triggerBlobDownload(blob, `${video.author}-${video.title}.mp4`);
-      } catch (e) {
-        showToast(e instanceof Error ? e.message : 'Download failed', 'error');
-        return;
-      }
-    } else {
-      // Direct CDN proxy — browser handles the download immediately
-      triggerLinkDownload(downloadUrl, `${video.author}-${video.title}.mp4`);
+    try {
+      const blob = await download(downloadUrl, pollUrl);
+      triggerBlobDownload(blob, `${video.author}-${video.title}.mp4`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Download failed', 'error');
+      return;
     }
 
     onLogDownload({
@@ -158,8 +139,8 @@ export default function VideoPreview({ video, token, onReset, onLogDownload, ori
                 {downloading ? <SpinnerIcon /> : <DownloadIcon />}
                 {downloading
                   ? progress?.phase === 'server'
-                    ? `Server preparing...${progress.percent != null ? ` ${progress.percent}%` : ''}`
-                    : `Downloading...${progress?.percent != null ? ` ${progress.percent}%` : ''}`
+                    ? `Preparing...${progress.percent != null ? ` ${progress.percent}%` : ''}${progress.speed ? ` · ${progress.speed}` : ''}`
+                    : `Downloading...${progress?.percent != null ? ` ${progress?.percent}%` : ''}${progress?.speed ? ` · ${progress?.speed}` : ''}`
                   : 'Download Video'}
               </button>
               <button className={styles.resetBtn} onClick={onReset}>
@@ -172,6 +153,8 @@ export default function VideoPreview({ video, token, onReset, onLogDownload, ori
               percent={progress?.percent ?? null}
               loaded={progress?.loaded ?? 0}
               total={progress?.total ?? null}
+              speed={progress?.speed}
+              eta={progress?.eta}
               compact
             />
           )}

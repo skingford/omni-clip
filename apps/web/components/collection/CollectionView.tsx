@@ -33,8 +33,10 @@ async function downloadVideo(
   if (collectionName) params.set('collection', collectionName);
   if (index != null) params.set('index', String(index + 1).padStart(2, '0'));
 
+  const pollUrl = `/api/download/progress?token=${encodeURIComponent(token)}`;
+
   try {
-    const blob = await downloadWithProgress(`/api/download?${params}`, onProgress);
+    const blob = await downloadWithProgress(`/api/download?${params}`, onProgress, undefined, pollUrl);
     if (blob.type === 'application/json' || blob.size < 1000) return false;
 
     const cleanTitle = title.replace(/#[^\s#]*/g, '').replace(/@[^\s@]*/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
@@ -97,30 +99,44 @@ export default function CollectionView({ collection, onReset, onLogDownload, ori
 
   const handleDownloadAll = useCallback(async () => {
     setDownloading(true);
-    const total = collection.videos.length;
+    const videos = collection.videos;
+    const total = videos.length;
+    let completed = 0;
     let failed = 0;
     setProgress({ current: 0, total, failed: 0 });
 
-    for (let i = 0; i < total; i++) {
-      const video = collection.videos[i];
-      setStatus(video.id, 'loading');
-      const ok = await downloadVideo(
-        video.token,
-        video.title,
-        (p) => setProgressMap((prev) => ({ ...prev, [video.id]: p })),
-        collection.name,
-        i,
-      );
-      setProgressMap((prev) => { const next = { ...prev }; delete next[video.id]; return next; });
-      setStatus(video.id, ok ? 'done' : 'failed');
-      if (!ok) failed++;
-      setProgress({ current: i + 1, total, failed });
+    // Concurrent download pool (2 videos at a time)
+    const CONCURRENCY = 2;
+    const STAGGER_DELAY = 500; // ms between starting new downloads
+    let nextIndex = 0;
 
-      // Stagger to avoid CDN rate limiting
-      if (i < total - 1) {
-        await new Promise((r) => setTimeout(r, 3000));
+    async function runWorker() {
+      while (nextIndex < total) {
+        const i = nextIndex++;
+        const video = videos[i];
+
+        // Small stagger to avoid burst
+        if (i > 0) await new Promise((r) => setTimeout(r, STAGGER_DELAY));
+
+        setStatus(video.id, 'loading');
+        const ok = await downloadVideo(
+          video.token,
+          video.title,
+          (p) => setProgressMap((prev) => ({ ...prev, [video.id]: p })),
+          collection.name,
+          i,
+        );
+        setProgressMap((prev) => { const next = { ...prev }; delete next[video.id]; return next; });
+        setStatus(video.id, ok ? 'done' : 'failed');
+        if (!ok) failed++;
+        completed++;
+        setProgress({ current: completed, total, failed });
       }
     }
+
+    // Launch concurrent workers
+    const workers = Array.from({ length: Math.min(CONCURRENCY, total) }, () => runWorker());
+    await Promise.all(workers);
 
     setDownloading(false);
   }, [collection.videos, collection.name]);
@@ -184,6 +200,8 @@ export default function CollectionView({ collection, onReset, onLogDownload, ori
                       percent={progressMap[video.id].percent}
                       loaded={progressMap[video.id].loaded}
                       total={progressMap[video.id].total}
+                      speed={progressMap[video.id].speed}
+                      eta={progressMap[video.id].eta}
                       compact
                     />
                   )}

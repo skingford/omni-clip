@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { getVideo } from '@/lib/store';
 import { setDownloadProgress, clearDownloadProgress } from '@/lib/download-progress-store';
+import { shouldUseParallelDownload, downloadParallelChunks } from '@/lib/chunked-download';
+import { formatSpeed, formatEta, SpeedCalculator } from '@/lib/download-speed';
 import { sanitizeFilename } from '@omni-clip/core/utils/filename';
 
 const DOUYIN_HEADERS: Record<string, string> = {
@@ -163,6 +165,18 @@ async function fetchDouyinUrl(url: string, headers: Record<string, string>): Pro
   return redirectRes;
 }
 
+/**
+ * Resolve Douyin URL to its final CDN URL (following redirects).
+ * Needed for Range probe since we need the final URL.
+ */
+async function resolveDouyinCdnUrl(url: string, headers: Record<string, string>): Promise<string> {
+  const redirectRes = await fetch(url, { headers, redirect: 'manual' });
+  if (redirectRes.status === 302 || redirectRes.status === 301) {
+    return redirectRes.headers.get('location') || url;
+  }
+  return url;
+}
+
 async function fetchVideoUrl(url: string, headers: Record<string, string>, platform: string): Promise<Response> {
   if (platform === 'douyin') {
     return fetchDouyinUrl(url, headers);
@@ -186,6 +200,82 @@ async function fetchVideoWithFallbacks(
     }
   }
   return null;
+}
+
+/**
+ * Attempt parallel chunked download for a video URL.
+ * Returns a Response if parallel download is used, null otherwise.
+ */
+async function tryParallelDownload(
+  urls: string[],
+  headers: Record<string, string>,
+  platform: string,
+  token: string,
+  filename: string,
+): Promise<Response | null> {
+  // Resolve the actual CDN URL (follow redirects for Douyin)
+  let cdnUrl: string | null = null;
+  for (const url of urls) {
+    try {
+      if (platform === 'douyin') {
+        cdnUrl = await resolveDouyinCdnUrl(url, headers);
+      } else {
+        // For YouTube, do a HEAD request to get the final URL after redirects
+        const headRes = await fetch(url, { method: 'HEAD', headers, redirect: 'follow' });
+        if (headRes.ok) {
+          cdnUrl = headRes.url;
+        }
+      }
+      if (cdnUrl) break;
+    } catch {
+      // try next URL
+    }
+  }
+
+  if (!cdnUrl) return null;
+
+  const { useParallel, contentLength } = await shouldUseParallelDownload(cdnUrl, headers);
+
+  if (!useParallel || !contentLength) return null;
+
+  // Set up progress tracking
+  const speedCalc = new SpeedCalculator();
+
+  const stream = downloadParallelChunks(cdnUrl, headers, contentLength, {
+    concurrency: 4,
+    onProgress: (progress) => {
+      speedCalc.addBytes(0); // We track bytes via the progress callback
+      const percent = Math.round((progress.downloadedBytes / progress.totalBytes) * 100);
+      const speed = progress.speed;
+      const remaining = progress.totalBytes - progress.downloadedBytes;
+      const etaSec = speed > 0 ? remaining / speed : null;
+
+      setDownloadProgress(token, {
+        status: percent >= 100 ? 'done' : 'downloading',
+        downloadedBytes: progress.downloadedBytes,
+        totalBytes: progress.totalBytes,
+        percent,
+        speed: formatSpeed(speed),
+        eta: formatEta(etaSec),
+        connections: progress.activeConnections,
+      });
+    },
+  });
+
+  // Clean up progress when stream completes
+  const trackedStream = stream.pipeThrough(new TransformStream({
+    flush() {
+      clearDownloadProgress(token);
+    },
+  }));
+
+  return new Response(trackedStream, {
+    headers: {
+      'Content-Type': 'video/mp4',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+      'Content-Length': String(contentLength),
+    },
+  });
 }
 
 export async function GET(request: Request) {
@@ -224,14 +314,6 @@ export async function GET(request: Request) {
 
     const headers = getHeadersForPlatform(videoInfo.platform);
     const urls = videoInfo.videoUrls ?? [videoInfo.videoUrl];
-    const cdnResponse = await fetchVideoWithFallbacks(urls, headers, videoInfo.platform);
-
-    if (!cdnResponse) {
-      return NextResponse.json(
-        { success: false, error: 'All video sources failed' },
-        { status: 502 }
-      );
-    }
 
     // Filename: [index-]clean_title.mp4
     const cleanTitle = videoInfo.title
@@ -243,7 +325,58 @@ export async function GET(request: Request) {
     const prefix = index ? `${index}-` : '';
     const filename = sanitizeFilename(`${prefix}${cleanTitle || videoInfo.author}`) + '.mp4';
 
+    // Try parallel chunked download first (Douyin/YouTube)
+    const parallelResponse = await tryParallelDownload(urls, headers, videoInfo.platform, token, filename);
+    if (parallelResponse) {
+      return parallelResponse;
+    }
+
+    // Fallback: single-stream proxy download
+    const cdnResponse = await fetchVideoWithFallbacks(urls, headers, videoInfo.platform);
+
+    if (!cdnResponse) {
+      return NextResponse.json(
+        { success: false, error: 'All video sources failed' },
+        { status: 502 }
+      );
+    }
+
+    // Set up single-stream progress tracking
     const contentLength = cdnResponse.headers.get('content-length');
+    const totalBytes = contentLength ? parseInt(contentLength, 10) : null;
+
+    let trackedBody: ReadableStream | null = cdnResponse.body;
+
+    if (cdnResponse.body && totalBytes) {
+      let downloaded = 0;
+      const speedCalc = new SpeedCalculator();
+
+      trackedBody = cdnResponse.body.pipeThrough(new TransformStream({
+        transform(chunk, controller) {
+          downloaded += chunk.byteLength;
+          speedCalc.addBytes(chunk.byteLength);
+          const percent = Math.round((downloaded / totalBytes) * 100);
+          const speed = speedCalc.getSpeed();
+          const etaSec = speedCalc.getEta(totalBytes - downloaded);
+
+          setDownloadProgress(token, {
+            status: percent >= 100 ? 'done' : 'downloading',
+            downloadedBytes: downloaded,
+            totalBytes,
+            percent,
+            speed: formatSpeed(speed),
+            eta: formatEta(etaSec),
+            connections: 1,
+          });
+
+          controller.enqueue(chunk);
+        },
+        flush() {
+          clearDownloadProgress(token);
+        },
+      }));
+    }
+
     const responseHeaders: Record<string, string> = {
       'Content-Type': 'video/mp4',
       'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
@@ -252,7 +385,7 @@ export async function GET(request: Request) {
       responseHeaders['Content-Length'] = contentLength;
     }
 
-    return new Response(cdnResponse.body, { headers: responseHeaders });
+    return new Response(trackedBody, { headers: responseHeaders });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(

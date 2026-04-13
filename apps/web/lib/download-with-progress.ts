@@ -1,3 +1,5 @@
+import { SpeedCalculator, formatSpeed, formatEta } from './download-speed';
+
 export interface DownloadProgress {
   /** Bytes received so far */
   loaded: number;
@@ -7,9 +9,9 @@ export interface DownloadProgress {
   percent: number | null;
   /** 'server' = yt-dlp downloading on server, 'download' = streaming to client */
   phase?: 'server' | 'download';
-  /** Download speed string from server (e.g. "5.2KiB/s") */
+  /** Download speed string (e.g. "5.2 MB/s") */
   speed?: string;
-  /** Estimated time remaining from server (e.g. "12:34") */
+  /** Estimated time remaining (e.g. "1:23") */
   eta?: string;
 }
 
@@ -20,6 +22,10 @@ interface PollProgressResponse {
   speed?: string;
   eta?: string;
   fragment?: string;
+  // Chunked download fields
+  downloadedBytes?: number;
+  totalBytes?: number;
+  connections?: number;
 }
 
 /**
@@ -47,8 +53,8 @@ export async function downloadWithProgress(
         const data: PollProgressResponse = await res.json();
         if (data.status === 'downloading' || data.status === 'merging') {
           onProgress({
-            loaded: 0,
-            total: null,
+            loaded: data.downloadedBytes ?? 0,
+            total: data.totalBytes ?? null,
             percent: data.percent ?? null,
             phase: 'server',
             speed: data.speed,
@@ -58,7 +64,7 @@ export async function downloadWithProgress(
       } catch {
         // Polling failure is not critical
       }
-    }, 2000);
+    }, 1000); // Poll every 1s instead of 2s for more responsive progress
   }
 
   try {
@@ -86,6 +92,7 @@ export async function downloadWithProgress(
     const reader = res.body.getReader();
     const chunks: Uint8Array[] = [];
     let loaded = 0;
+    const speedCalc = new SpeedCalculator();
 
     for (;;) {
       const { done, value } = await reader.read();
@@ -93,12 +100,24 @@ export async function downloadWithProgress(
 
       chunks.push(value);
       loaded += value.byteLength;
+      speedCalc.addBytes(value.byteLength);
 
       const percent = total != null && total > 0
         ? Math.round((loaded / total) * 100)
         : null;
 
-      onProgress({ loaded, total, percent, phase: 'download' });
+      const speed = speedCalc.getSpeed();
+      const remaining = total != null ? total - loaded : null;
+      const etaSec = remaining != null ? speedCalc.getEta(remaining) : null;
+
+      onProgress({
+        loaded,
+        total,
+        percent,
+        phase: 'download',
+        speed: formatSpeed(speed),
+        eta: formatEta(etaSec),
+      });
     }
 
     return new Blob(chunks as BlobPart[], { type: 'video/mp4' });
