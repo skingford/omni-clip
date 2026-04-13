@@ -3,6 +3,7 @@
 import type { AppState } from '@/components/types';
 import type { DownloadLogEntry } from '@/lib/download-log';
 import type { ToastType } from '@/components/ui/Toast';
+import type { AppMode } from '@/components/layout/Navigation';
 import HeroSection from '@/components/hero/HeroSection';
 import VideoPreview from '@/components/video/VideoPreview';
 import VideoError from '@/components/video/VideoError';
@@ -10,6 +11,7 @@ import CollectionView from '@/components/collection/CollectionView';
 
 interface VideoResolverClientProps {
   state: AppState;
+  mode: AppMode;
   onResolve: (url: string) => void;
   onReset: () => void;
   onLogDownload: (entry: DownloadLogEntry) => Promise<void>;
@@ -19,6 +21,7 @@ interface VideoResolverClientProps {
 
 export default function VideoResolverClient({
   state,
+  mode,
   onResolve,
   onReset,
   onLogDownload,
@@ -33,6 +36,7 @@ export default function VideoResolverClient({
       <HeroSection
         onSubmit={onResolve}
         loading={state.status === 'resolving'}
+        mode={mode}
       />
       {isResolved && !showCollection ? (
         <VideoPreview

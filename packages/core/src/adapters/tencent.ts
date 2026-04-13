@@ -144,28 +144,38 @@ export class TencentAdapter implements PlatformAdapter {
       ? `https://v.qq.com/x/page/${vid}.html`
       : url;
 
-    // Get metadata via yt-dlp (skip format/URL extraction — all Tencent
-    // formats are HLS/m3u8 and cannot be proxy-streamed directly).
-    // The download route will call yt-dlp again to actually download.
-    const ytdlpInfo = ytdlpGetInfo(canonicalUrl);
+    // Try yt-dlp first for rich metadata; fall back to page scraping so the
+    // video card still renders and the "Play Online" button works even when
+    // yt-dlp's Tencent extractor is broken or the video is VIP-only.
+    let ytdlpInfo: YtdlpVideoJson | null = null;
+    try {
+      ytdlpInfo = ytdlpGetInfo(canonicalUrl);
+    } catch {
+      // yt-dlp failed — fall through to page metadata
+    }
 
-    // Supplement with page metadata if yt-dlp metadata is incomplete
-    const needsPageMeta = !ytdlpInfo.title || !ytdlpInfo.thumbnail
+    // Supplement / replace with page metadata when needed
+    const needsPageMeta = !ytdlpInfo || !ytdlpInfo.title || !ytdlpInfo.thumbnail
       || (!ytdlpInfo.uploader && !ytdlpInfo.channel && !ytdlpInfo.creator);
     const pageMeta = needsPageMeta ? await fetchPageMetadata(canonicalUrl) : {};
 
-    const author = ytdlpInfo.uploader ?? ytdlpInfo.channel ?? ytdlpInfo.creator
-      ?? ytdlpInfo.series ?? pageMeta.author ?? 'Tencent Video';
+    // If both yt-dlp and page metadata fail, we can't proceed
+    if (!ytdlpInfo && !pageMeta.title) {
+      throw new Error('Could not retrieve video information. The video may be unavailable or region-restricted.');
+    }
+
+    const author = ytdlpInfo?.uploader ?? ytdlpInfo?.channel ?? ytdlpInfo?.creator
+      ?? ytdlpInfo?.series ?? pageMeta.author ?? 'Tencent Video';
 
     return {
       id: vid,
-      title: ytdlpInfo.title ?? pageMeta.title ?? 'Untitled',
+      title: ytdlpInfo?.title ?? pageMeta.title ?? 'Untitled',
       author,
-      description: ytdlpInfo.description ?? pageMeta.description ?? '',
+      description: ytdlpInfo?.description ?? pageMeta.description ?? '',
       // Store the page URL — yt-dlp will use this to download the HLS stream
       videoUrl: canonicalUrl,
-      coverUrl: ytdlpInfo.thumbnail ?? pageMeta.coverUrl ?? '',
-      duration: ytdlpInfo.duration,
+      coverUrl: ytdlpInfo?.thumbnail ?? pageMeta.coverUrl ?? '',
+      duration: ytdlpInfo?.duration,
       hasWatermark: false,
       platform: 'tencent',
     };

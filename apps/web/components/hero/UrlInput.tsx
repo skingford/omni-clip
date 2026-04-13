@@ -6,9 +6,10 @@ import styles from './UrlInput.module.css';
 interface UrlInputProps {
   onSubmit: (url: string) => void;
   loading: boolean;
+  placeholder?: string;
 }
 
-export default function UrlInput({ onSubmit, loading }: UrlInputProps) {
+export default function UrlInput({ onSubmit, loading, placeholder }: UrlInputProps) {
   const [url, setUrl] = useState('');
 
   function handleSubmit(e: FormEvent) {
@@ -25,7 +26,7 @@ export default function UrlInput({ onSubmit, loading }: UrlInputProps) {
         <input
           type="text"
           className={styles.input}
-          placeholder="Paste a video link (YouTube, Douyin)..."
+          placeholder={placeholder ?? "Paste a video link (YouTube, Douyin)..."}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           disabled={loading}

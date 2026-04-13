@@ -4,7 +4,9 @@ import type { VideoData } from '@/components/types';
 import type { DownloadLogEntry } from '@/lib/download-log';
 import type { ToastType } from '@/components/ui/Toast';
 import { useDownloadProgress } from '@/hooks/use-download-progress';
+import { useVideoPlayer } from '@/hooks/use-video-player';
 import ProgressBar from '@/components/ui/ProgressBar';
+import VideoPlayer from '@/components/player/VideoPlayer';
 import styles from './VideoPreview.module.css';
 
 interface VideoPreviewProps {
@@ -51,8 +53,13 @@ function triggerLinkDownload(url: string, filename: string) {
   setTimeout(() => { a.parentNode?.removeChild(a); }, 100);
 }
 
+/** Platforms that support online playback via third-party parsing. */
+const PLAYABLE_PLATFORMS = new Set(['tencent']);
+
 export default function VideoPreview({ video, token, onReset, onLogDownload, originalUrl, showToast }: VideoPreviewProps) {
   const { progress, downloading, download } = useDownloadProgress();
+  const { playerState, play, close: closePlayer } = useVideoPlayer();
+  const canPlay = PLAYABLE_PLATFORMS.has(video.platform);
 
   async function handleDownload() {
     const downloadUrl = `/api/download?token=${encodeURIComponent(token)}`;
@@ -84,28 +91,69 @@ export default function VideoPreview({ video, token, onReset, onLogDownload, ori
     });
   }
 
+  async function handlePlay() {
+    const error = await play(token);
+    if (error) {
+      showToast(error, 'error');
+    }
+  }
+
+  const isPlaying = playerState.status === 'playing';
+  const isParsing = playerState.status === 'parsing';
+
   return (
     <section className={styles.section}>
       <div className={styles.container}>
         <div className={styles.card}>
           <div className={styles.cover}>
-            {video.coverUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={video.coverUrl}
-                alt={video.title}
-                className={styles.coverImage}
+            {isPlaying ? (
+              <VideoPlayer
+                streamUrl={playerState.streamUrl}
+                streamType={playerState.streamType}
+                poster={video.coverUrl}
+                onClose={closePlayer}
               />
-            ) : null}
-            <span className={styles.badge}>{video.platform}</span>
-            {video.duration != null ? (
-              <span className={styles.duration}>{formatDuration(video.duration)}</span>
-            ) : null}
+            ) : (
+              <>
+                {video.coverUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={video.coverUrl}
+                    alt={video.title}
+                    className={styles.coverImage}
+                  />
+                ) : null}
+                <span className={styles.badge}>{video.platform}</span>
+                {video.duration != null ? (
+                  <span className={styles.duration}>{formatDuration(video.duration)}</span>
+                ) : null}
+                {canPlay && !isParsing && (
+                  <button className={styles.coverPlayBtn} onClick={handlePlay} title="Play online">
+                    <PlayIcon size={48} />
+                  </button>
+                )}
+                {isParsing && (
+                  <div className={styles.coverLoading}>
+                    <SpinnerIcon />
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div className={styles.info}>
             <h2 className={styles.title}>{video.title}</h2>
             <p className={styles.author}>{video.author}</p>
             <div className={styles.actions}>
+              {canPlay && (
+                <button
+                  className={styles.playBtn}
+                  onClick={handlePlay}
+                  disabled={isParsing || isPlaying}
+                >
+                  {isParsing ? <SpinnerIcon /> : <PlayIcon />}
+                  {isParsing ? 'Parsing...' : isPlaying ? 'Playing' : 'Play Online'}
+                </button>
+              )}
               <button className={styles.downloadBtn} onClick={handleDownload} disabled={downloading}>
                 {downloading ? <SpinnerIcon /> : <DownloadIcon />}
                 {downloading
@@ -147,6 +195,14 @@ function DownloadIcon() {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="7 10 12 15 17 10" />
       <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+function PlayIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5v14l11-7z" />
     </svg>
   );
 }

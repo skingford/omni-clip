@@ -5,6 +5,7 @@ import { useVideoResolver } from '@/hooks/use-video-resolver';
 import { useDownloadLog } from '@/hooks/use-download-log';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from './Navigation';
+import type { AppMode } from './Navigation';
 import VideoResolverClient from '@/components/hero/VideoResolverClient';
 import DownloadHistory from '@/components/history/DownloadHistory';
 import Toast from '@/components/ui/Toast';
@@ -14,6 +15,7 @@ export default function AppShell() {
   const { history, log, remove } = useDownloadLog();
   const { items: toastItems, show: showToast, dismiss: dismissToast } = useToast();
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [mode, setMode] = useState<AppMode>('download');
 
   const handleRedownload = useCallback((url: string) => {
     setHistoryOpen(false);
@@ -25,12 +27,15 @@ export default function AppShell() {
   return (
     <>
       <Navigation
+        mode={mode}
+        onModeChange={setMode}
         onHistoryToggle={() => setHistoryOpen((v) => !v)}
         historyCount={history.length}
       />
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <VideoResolverClient
           state={state}
+          mode={mode}
           onResolve={handleResolve}
           onReset={handleReset}
           onLogDownload={log}

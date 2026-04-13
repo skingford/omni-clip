@@ -29,6 +29,37 @@
   color: var(--color-text-white);
 }
 
+.links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -0.1px;
+  color: rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-pill);
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.navLink:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.navLinkActive {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+}
+
 .actions {
   display: flex;
   align-items: center;
